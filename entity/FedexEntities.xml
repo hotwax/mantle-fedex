@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<entities xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/entity-definition-2.1.xsd">
+
+    <!--Entity to stored required credentials for Authentication-->
+    <entity entity-name="FedexTokenDetails" package="mantle.fedex">
+
+        <!--tokenId will always remain one-->
+        <field name="tokenId" type="id" is-pk="true"/>
+        <field name="grantType" type="text-long"/>
+        <field name="clientId" type="text-long"/>
+        <field name="clientSecret" type="text-long"/>
+    </entity>
+</entities>
