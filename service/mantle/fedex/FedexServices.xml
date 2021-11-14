@@ -4,7 +4,7 @@
         <service verb="send" noun="FedexRequest">
             <in-parameters>
                 <parameter name="requestMap" required="true"/>
-                <parameter name="apiToken" required="true"/>
+                <parameter name="fedexApiToken" required="true"/>
             </in-parameters>
             <out-parameters>
                 <parameter name="responseMap"/>
@@ -21,7 +21,7 @@
                      restClient.method("POST")
                      restClient.uri(connectUrl)
                      restClient.contentType("application/json")
-                     restClient.addHeader("Authorization", "Bearer ${apiToken}")
+                     restClient.addHeader("Authorization", "Bearer ${fedexApiToken}")
                      restClient.addHeader("Content-Type", "application/json")
                      restClient.jsonObject(requestMap)
                      RestClient.RestResponse restResponse = restClient.call()
