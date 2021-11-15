@@ -4,7 +4,23 @@
         <!--Validate Postal Address-->
         <service verb="validate" noun="PostalAddress">
             <description>Credentials are required for this service which can be added from
-                mantle.fedex.FedexServices.store#FedexTokenDetails.</description>
+                mantle.fedex.FedexServices.store#FedexTokenDetails.
+                {
+                    "addressesToValidate": [
+                        {
+                            "address": {
+                                "streetLines": [
+                                    "Toronto City Hall 100 Queen St W"
+                                ],
+                                "city": "Toranto",
+                                "stateOrProvinceCode": "ON",
+                                "postalCode": "M5H2N1",
+                                "countryCode": "CA"
+                            }
+                        }
+                    ]
+                }
+            </description>
             <in-parameters>
                 <parameter name="requestMap" required="true"/>
             </in-parameters>
@@ -153,9 +169,6 @@
                         <set field="fedexTokenDetails.clientSecret" from="clientSecret"/>
                         <entity-update value-field="fedexTokenDetails"/>
                     </else>
-
-                    <!--          <set field="fedexTokenDetails.fedexApiToken" from="responseMap.access_token"/>
-                              <set field="fedexTokenDetails.tokenType" from="responseMap.token_type"/>-->
 
                     <!--Store these values in table-->
                     <log message="============${tokenId},${grantType},${clientId},${clientSecret}=============="/>
