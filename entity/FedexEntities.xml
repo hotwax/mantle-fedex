@@ -10,5 +10,6 @@
             <field name="grantType" type="text-long"/>
             <field name="clientId" type="text-long"/>
             <field name="clientSecret" type="text-long"/>
+            <field name="accountNumber" type="text-short"/>
         </entity>
 </entities>
