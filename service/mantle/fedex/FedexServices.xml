@@ -3,10 +3,11 @@
 
     <!--Default Authentication Service for Main services -->
         <!--Getting Fedex API Token by tokenId-->
-        <service verb="get" noun="FedexApiToken">
+        <service verb="set" noun="FedexApiToken">
             <out-parameters>
                 <parameter name="fedexApiToken" required="true"/>
                 <parameter name="tokenType" required="true"/>
+                <parameter name="accountNumber" required="true"/>
             </out-parameters>
             <actions>
 
@@ -22,12 +23,12 @@
                 </if>
 
                 <!--Hard Coded Url-->
-                <log message="==============API Found=============="/>
+                <log message="==============Get Service: API Found=============="/>
                 <set field="connectUrl" value="https://apis-sandbox.fedex.com/oauth/token"/>
 
                 <!--request Path has Context Type:"application/x-www-form-urlencoded"-->
                 <set field="requestPath" value="grant_type=${apiTokenDetails.grantType}&amp;client_id=${apiTokenDetails.clientId}&amp;client_secret=${apiTokenDetails.clientSecret}"/>
-
+                <log message="==============Details: ${apiTokenDetails.grantType}, ${apiTokenDetails.clientId},${apiTokenDetails.clientSecret}=============="/>
                 <script><![CDATA[
                   import org.moqui.util.RestClient;
                   import groovy.json.JsonSlurper;
@@ -55,20 +56,19 @@
                 <log message="==================${responseMap}=============="/>
                 <set field="fedexApiToken" from="responseMap.access_token"/>
                 <set field="tokenType" from="responseMap.token_type"/>
+                <set field="accountNumber" from="apiTokenDetails.accountNumber"/>
             </actions>
         </service>
 
     <!--Default Authentication Service for Main services -->
         <!--Set/Generate new Fedex API Token-->
         <service verb="store" noun="FedexTokenDetails">
-            <description>Test Credentails are:
-                        1)grantType=client_credentials
-                        2)clientId=l7ea8c805cbc744ac2aba322fbc2150d81
-                        3)clientSecret=8551e10d476549e4a09c522d70e51915
+            <description>
+                Test Credentials Are Predefined so this service is outdated.
             </description>
                  <in-parameters>
-                    <!--Adds grantType,clientId and clientSecret-->
-                    <auto-parameters required="true" entity-name="FedexTokenDetails" include="nonpk">
+                <!--Adds grantType,clientId, clientSecret and accountNumber-->
+                <auto-parameters entity-name="FedexTokenDetails" include="nonpk">
                         <exclude field-name="lastUpdatedStamp"/>
                     </auto-parameters>
                 </in-parameters>
@@ -78,30 +78,33 @@
 
                 <actions>
 
-                    <!--Setting AccessTtext-longoken Record in fedexTokenDetails entity-->
                     <entity-find-one entity-name="FedexTokenDetails" value-field="fedexTokenDetails">
                         <field-map field-name="tokenId" value="1"/>
                     </entity-find-one>
 
-                    <set field="tokenId" value="1"/>
-                    <if condition="fedexTokenDetails==null">
+                <set field="tokenId" value="1"/>
+
+                <!--Create new token/Update current token-->
+                  <if condition="fedexTokenDetails==null">
                         <entity-make-value entity-name="FedexTokenDetails" value-field="fedexTokenDetails"/>
                         <set field="tokenId" value="1"/>
                         <set field="fedexTokenDetails.tokenId" from="tokenId"/>
                         <set field="fedexTokenDetails.grantType" from="grantType"/>
                         <set field="fedexTokenDetails.clientId" from="clientId"/>
                         <set field="fedexTokenDetails.clientSecret" from="clientSecret"/>
+                        <set field="fedexTokenDetails.accountNumber" from="accountNumber"/>
                         <entity-create value-field="fedexTokenDetails"/>
                     </if>
                     <else>
                         <set field="fedexTokenDetails.grantType" from="grantType"/>
                         <set field="fedexTokenDetails.clientId" from="clientId"/>
                         <set field="fedexTokenDetails.clientSecret" from="clientSecret"/>
+                        <set field="fedexTokenDetails.accountNumber" from="accountNumber"/>
                         <entity-update value-field="fedexTokenDetails"/>
                     </else>
 
                     <!--Store these values in table-->
-                    <log message="============${tokenId},${grantType},${clientId},${clientSecret}=============="/>
+                <log message="============${tokenId},${grantType},${clientId},${clientSecret},${accountNumber}=============="/>
             </actions>
         </service>
 
@@ -139,7 +142,7 @@
             <set field="connectUrl" value="https://apis-sandbox.fedex.com/address/v1/addresses/resolve"/>
 
             <!--Returns fedexApiToken and tokenType-->
-            <service-call name="mantle.fedex.FedexServices.get#FedexApiToken" out-map="fedexTokenDetails"/>
+            <service-call name="mantle.fedex.FedexServices.set#FedexApiToken" out-map="fedexTokenDetails"/>
 
             <!--Check if Token Credentials Are added or not-->
             <if condition="fedexTokenDetails==null">
@@ -175,4 +178,3 @@
         </actions>
     </service>
 </services>
-
