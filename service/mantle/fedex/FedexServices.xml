@@ -3,7 +3,7 @@
 
     <!--Default Authentication Service for Main services -->
         <!--Getting Fedex API Token by tokenId-->
-        <service verb="get" noun="FedexApiToken">
+        <service verb="set" noun="FedexApiToken">
             <out-parameters>
                 <parameter name="fedexApiToken" required="true"/>
                 <parameter name="tokenType" required="true"/>
@@ -23,12 +23,12 @@
                 </if>
 
                 <!--Hard Coded Url-->
-                <log message="==============API Found=============="/>
+                <log message="==============Get Service: API Found=============="/>
                 <set field="connectUrl" value="https://apis-sandbox.fedex.com/oauth/token"/>
 
                 <!--request Path has Context Type:"application/x-www-form-urlencoded"-->
                 <set field="requestPath" value="grant_type=${apiTokenDetails.grantType}&amp;client_id=${apiTokenDetails.clientId}&amp;client_secret=${apiTokenDetails.clientSecret}"/>
-
+                <log message="==============Details: ${apiTokenDetails.grantType}, ${apiTokenDetails.clientId},${apiTokenDetails.clientSecret}=============="/>
                 <script><![CDATA[
                       import org.moqui.util.RestClient;
                       import groovy.json.JsonSlurper;
@@ -63,10 +63,8 @@
     <!--Default Authentication Service for Main services -->
         <!--Set/Generate new Fedex API Token-->
         <service verb="store" noun="FedexTokenDetails">
-            <description>Test Credentails are:
-                1)grantType=client_credentials
-                2)clientId=l7ea8c805cbc744ac2aba322fbc2150d81
-                3)clientSecret=8551e10d476549e4a09c522d70e51915
+            <description>
+                Test Credentials Are Predefined so this service is outdated.
             </description>
             <in-parameters>
                 <!--Adds grantType,clientId, clientSecret and accountNumber-->
@@ -80,12 +78,13 @@
 
             <actions>
 
-                <!--Setting AccessTtext-longoken Record in fedexTokenDetails entity-->
                 <entity-find-one entity-name="FedexTokenDetails" value-field="fedexTokenDetails">
                     <field-map field-name="tokenId" value="1"/>
                 </entity-find-one>
 
                 <set field="tokenId" value="1"/>
+
+                <!--Create new token/Update current token-->
                 <if condition="fedexTokenDetails==null">
                     <entity-make-value entity-name="FedexTokenDetails" value-field="fedexTokenDetails"/>
                     <set field="tokenId" value="1"/>
@@ -126,7 +125,7 @@
                 <set field="connectUrl" value="https://apis-sandbox.fedex.com/rate/v1/rates/quotes"/>
 
                 <!--Returns fedexApiToken and tokenType-->
-                <service-call name="mantle.fedex.FedexServices.get#FedexApiToken" out-map="fedexTokenDetails"/>
+                <service-call name="mantle.fedex.FedexServices.set#FedexApiToken" out-map="fedexTokenDetails"/>
 
                 <!--Check if Token Credentials Are added or not-->
                 <if condition="fedexTokenDetails==null">
@@ -157,12 +156,23 @@
                         responseMap = restResponse.jsonObject()
                       ]]>
                 </script>
-                <log message="============${responseMap}=============="/>
+                <log message="============ResponseMap: ${responseMap}=============="/>
                <!-- <iterate list="responseMap" entry="value">
                     <set field="responseMapContent" from="[responseMapContent]"
                 </iterate>-->
-                <set field="responseMapContent" from="[accountNumber:fedexTokenDetails.accountNumber,responseMap:responseMap]"/>
-                <log message="============${responseMapContent}=============="/>
+                
+                <!--Extracting Details of Response Map-->
+                <log message="============ResponseMapContent: ${responseMapContent}=============="/>
+                <iterate list="responseMap" entry="tags">
+                    <if condition="tags.key=='output'"><then>
+                        <iterate list="tags.value" entry="outputTags">
+                             <log message="========== OutputTags: ${outputTags.key} and value ${outputTags.value}======="/>
+                        </iterate>
+                    </then>
+                    <else>
+                        <log message="========== Tags: ${tags.key} and value ${tags.value}======="/>
+                    </else></if>
+                </iterate>
             </actions>
         </service>
 </services>
