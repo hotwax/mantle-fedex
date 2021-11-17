@@ -119,29 +119,13 @@
             <parameter name="contactMechId" required="true"/>
         </in-parameters>
         <out-parameters>
-            <parameter name="responseMap"/>
+            <parameter name="responseMap" type="Map"/>
         </out-parameters>
         <actions>
 
-            <!--Validating ContactMech Id-->
-            <entity-find-one entity-name="mantle.party.contact.PostalAddress" value-field="postalAddress">
-                <field-map field-name="contactMechId" from="contactMechId"/>
-            </entity-find-one>
-            <if condition="postalAddress==null">
-                <log message="============Invalid Contact Mech ID=======" level="warn"/>
-                <return/>
-            </if>
-
-            <!--Creating Request Map From given Postal Address-->
-            <log message="============Request Map Default:${requestMap}=============="/>
-            <set field="adrs" from="streetLines:[postalAddress.address1],
-                                        city:postalAddress.city,
-                                        stateOrProvinceCode:postalAddress.stateProvinceGeoId,
-                                        countryCode:postalAddress.countryGeoId,
-                                        postalCode:postalAddress.postalCode" type="NewMap"/>
-            <set field="requestMap" from="[addressesToValidate:[[address:adrs]]]" type="NewMap"/>
-            <log message="============Request Map2: ${requestMap}=============="/>
-
+            <service-call name="mantle.fedex.FedexServices.get#AddressMap" in-map='[contactMechId:contactMechId]' out-map='addressMap'/>
+            <if condition="addressMap.validContactMechId==null"><return/></if>
+            <set field="requestMap" from="addressMap.requestMap"/>
             <!--Hard Coded Url-->
             <set field="connectUrl" value="https://apis-sandbox.fedex.com/address/v1/addresses/resolve"/>
 
@@ -179,6 +163,37 @@
                     responseMap = restResponse.jsonObject()
             ]]></script>
             <log message="==============${responseMap}=============="/>
+        </actions>
+    </service>
+
+    <!--Return Address in form of Required Request Map-->
+    <service verb="get" noun="AddressMap">
+        <in-parameters>
+            <parameter name="contactMechId"></parameter>
+        </in-parameters>
+        <out-parameters>
+            <parameter name="validContactMechId"/>
+            <parameter name="requestMap"/>
+        </out-parameters>
+        <actions>
+            <!--Validating ContactMech Id-->
+            <entity-find-one entity-name="mantle.party.contact.PostalAddress" value-field="postalAddress">
+                <field-map field-name="contactMechId" from="contactMechId"/>
+            </entity-find-one>
+            <if condition="postalAddress==null">
+                <log message="============Invalid Contact Mech ID=======" level="warn"/>
+                <return/>
+            </if>
+            <!--Creating Request Map From given Postal Address-->
+            <set field="adrs" from="streetLines:[postalAddress.address1],
+                                        city:postalAddress.city,
+                                        stateOrProvinceCode:postalAddress.stateProvinceGeoId,
+                                        countryCode:postalAddress.countryGeoId,
+                                        postalCode:postalAddress.postalCode" type="NewMap"/>
+            <set field="requestMap" from="[addressesToValidate:[[address:adrs]]]" type="NewMap"/>
+            <set field="validContactMechId" value="true"/>
+            <log message="============Request Map: ${requestMap}=============="/>
+
         </actions>
     </service>
 </services>
