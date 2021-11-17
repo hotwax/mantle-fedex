@@ -112,31 +112,35 @@
     <service verb="validate" noun="PostalAddress">
         <description>Credentials are required for this service which can be added from
             mantle.fedex.FedexServices.store#FedexTokenDetails.
-            {
-            "addressesToValidate": [
-            {
-            "address": {
-            "streetLines": [
-            "Toronto City Hall 100 Queen St W"
-            ],
-            "city": "Toranto",
-            "stateOrProvinceCode": "ON",
-            "postalCode": "M5H2N1",
-            "countryCode": "CA"
-            }
-            }
-            ]
-            }
+            Demo ContactMechId="Fedex_Contact_Ivan"
         </description>
 
         <in-parameters>
-            <parameter name="requestMap" required="true"/>
+            <parameter name="contactMechId" required="true"/>
         </in-parameters>
         <out-parameters>
             <parameter name="responseMap"/>
         </out-parameters>
         <actions>
-            <log message="============${requestMap}=============="/>
+
+            <!--Validating ContactMech Id-->
+            <entity-find-one entity-name="mantle.party.contact.PostalAddress" value-field="postalAddress">
+                <field-map field-name="contactMechId" from="contactMechId"/>
+            </entity-find-one>
+            <if condition="postalAddress==null">
+                <log message="============Invalid Contact Mech ID=======" level="warn"/>
+                <return/>
+            </if>
+
+            <!--Creating Request Map From given Postal Address-->
+            <log message="============Request Map Default:${requestMap}=============="/>
+            <set field="adrs" from="streetLines:[postalAddress.address1],
+                                        city:postalAddress.city,
+                                        stateOrProvinceCode:postalAddress.stateProvinceGeoId,
+                                        countryCode:postalAddress.countryGeoId,
+                                        postalCode:postalAddress.postalCode" type="NewMap"/>
+            <set field="requestMap" from="[addressesToValidate:[[address:adrs]]]" type="NewMap"/>
+            <log message="============Request Map2: ${requestMap}=============="/>
 
             <!--Hard Coded Url-->
             <set field="connectUrl" value="https://apis-sandbox.fedex.com/address/v1/addresses/resolve"/>

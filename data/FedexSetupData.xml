@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <entity-facade-xml type="seed">
-    <moqui.basic.Enumeration description="Fedex REST API" enumId="FedExGateway" enumTypeId="ShippingGatewayType"/>
-
     <!--Test Credentials For Generation Authentication Token-->
     <mantle.fedex.FedexTokenDetails tokenId="1" grantType="client_credentials" clientId="l7ea8c805cbc744ac2aba322fbc2150d81"
                                     clientSecret="8551e10d476549e4a09c522d70e51915" accountNumber="740561073"/>
