@@ -53,7 +53,7 @@
                 </script>
                 <log message="====Connection Response Map: ${responseMap}======="/>
             </actions>
-    </service>
+        </service>
     <!--Default Authentication Service for Main services -->
         <!--Getting Fedex API Token by tokenId-->
         <service verb="set" noun="FedexApiToken">
@@ -153,105 +153,4 @@
                 <log message="============TOKEN ID: ${tokenId},GRANT TYPE: ${grantType},CLIENT ID: ${clientId},CLIENT SECRET: ${clientSecret},ACCOUNT NUMBER: ${accountNumber}=============="/>
             </actions>
         </service>
-
-    <!--Validate Postal Address-->
-    <service verb="validate" noun="PostalAddress">
-        <description>Credentials are stored in Demo Data.Demo: ContactMechId="Fedex_Contact_Ivan",ShippingGatewayConfigId="Fedex Integration"
-        </description>
-
-        <in-parameters>
-            <parameter name="contactMechId" required="true"/>
-            <parameter name="partyId" required="true"/>
-            <parameter name="shippingGatewayConfigId" required="true"/>
-        </in-parameters>
-        <out-parameters>
-            <parameter name="responseMap" type="Map"/>
-        </out-parameters>
-        <actions>
-
-    <!--        &lt;!&ndash;Checking If partyId and ContactMechId are linked&ndash;&gt;
-            <entity-find-one entity-name="mantle.party.contact.PartyContactMechInfo" value-field="partyContactMechLink">
-                <field-map field-name="contactMechId" from="contactMechId"/>
-                <field-map field-name="partyId" from="partyId"/>
-            </entity-find-one>
-            <if condition="!partyContactMechLink">
-                <log message="============PartyContactMech is Not Present=======" level="warn"/>
-                <return/>
-            </if>-->
-            <!--Returns fedexApiToken and tokenType-->
-            <log message="==========Ship Config Id: ${shippingGatewayConfigId}========="/>
-            <service-call name="mantle.fedex.FedexServices.set#FedexApiToken" in-map='[shippingGatewayConfigId:shippingGatewayConfigId]'
-                          out-map='fedexTokenDetails'/>
-
-            <!--Check if Token Credentials Are added or not-->
-            <entity-find-one entity-name="ShippingGatewayOption" value-field="apiToken">
-                <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
-            </entity-find-one>
-            <if condition="apiToken==null || apiToken.optionValue==null">
-                <log level="error" message="=============Fedex API Token not available.=============="/>
-                <return/>
-            </if>
-            <if condition="fedexTokenDetails==null">
-                <log message="=============Fedex Access Token Credentials
-                                  not available.=============="/>
-                <return/>
-            </if>
-            <service-call name="mantle.fedex.FedexServices.get#AddressMap"
-                          in-map='[contactMechId:contactMechId, partyId:partyId]'
-                          out-map='addressMap'/>
-            <if condition="!addressMap.validContactMechId"><return/></if>
-            <log message="========API Token Found: ${connectUrl},${apiToken.optionValue}, ${fedexTokenDetails.tokenType},${addressMap.requestMap}========="/>
-            <service-call name="mantle.fedex.FedexServices.set#Connection"
-                          in-map="[method:'POST',connectUrl:'https://apis-sandbox.fedex.com/address/v1/addresses/resolve',
-                                   contentType:'application/json',requestMap:addressMap.requestMap,requestPath:requestPath,
-                                   apiTokenType:fedexTokenDetails.tokenType,apiTokenValue:apiToken.optionValue]"
-                          out-map="responseMap"/>
-            <log message="==============Validation Response Map : ${responseMap.responseMap}=============="/>
-            <set field="responseMap" from="responseMap.responseMap"/>
-            <!--Through response parameters set partyContactMechInfo.trustLevelEnumId to true-->
-            <!--Extracting Information From Response Map-->
-            <set field="transactionId" from="responseMap.transactionId"/>
-        </actions>
-    </service>
-
-    <!--Return Address in form of Required Request Map-->
-    <service verb="get" noun="AddressMap">
-        <in-parameters>
-            <parameter name="contactMechId"></parameter>
-            <parameter name="partyId"></parameter>
-        </in-parameters>
-        <out-parameters>
-            <parameter name="validContactMechId"/>
-            <parameter name="requestMap"/>
-        </out-parameters>
-        <actions>
-            <!--Validating ContactMech Id-->
-            <entity-find-one entity-name="mantle.party.contact.PostalAddress" value-field="postalAddress">
-                <field-map field-name="contactMechId" from="contactMechId"/>
-            </entity-find-one>
-            <if condition="!postalAddress">
-                <log level="error" message="============Invalid Contact Mech ID=======" />
-                <return/>
-            </if>
-            <!--Creating Request Map From given Postal Address-->
-            <entity-find-one entity-name="Geo" value-field="geoStateData">
-                <field-map field-name="geoId" from="postalAddress.stateProvinceGeoId"/>
-                <select-field field-name="geoCodeAlpha2"/>
-            </entity-find-one>
-            <entity-find-one entity-name="Geo" value-field="geoCountryData">
-                <field-map field-name="geoId" from="postalAddress.countryGeoId"/>
-            </entity-find-one>
-            <log message="============Geo Data: ${geoCountryData},${geoCountryData.geoCodeAlpha2}, ${geoCountryData.geoId}=========="/>
-            <log message="============Geo Data: ${geoStateData},${geoStateData.geoCodeAlpha2}, ${geoStateData.geoId}=========="/>
-            <set field="adrs" from="streetLines:[postalAddress.address1],
-                                    city:postalAddress.city,
-                                    stateOrProvinceCode:geoStateData.geoCodeAlpha2,
-                                    countryCode:geoCountryData.geoCodeAlpha2,
-                                    postalCode:postalAddress.postalCode" type="NewMap"/>
-            <set field="requestMap" from="[addressesToValidate:[[address:adrs]]]" type="NewMap"/>
-            <set field="validContactMechId" value="true"/>
-            <log message="============Generated Request Map: ${requestMap}=============="/>
-
-        </actions>
-    </service>
 </services>

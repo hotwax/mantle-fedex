@@ -10,11 +10,7 @@
                                                    validateAddressServiceName="mantle.fedex.FedexServices.validate#PostalAddress"/>
     <mantle.shipment.carrier.ShippingGatewayOption shippingGatewayConfigId="FEDEX_INTEGRATION" optionEnumId="FedexApiToken"/>
     <mantle.party.contact.ContactMech contactMechId="Fedex_Contact_Ivan" contactMechTypeEnumId="CmtPostalAddress"/>
-    <!--If trustLevelEnumId is true when address is valid-->
-<!--    <mantle.party.contact.PartyContactMechInfo partyId="Fedex Party" contactMechId="PtyPerson" contactMechPurposeId="FedexPartyPurpose"
-                                               fromDate="2010-02-03 02:00" trustLeveLEnumId="false"/>-->
     <moqui.basic.Geo geoId="CAN_ON" geoTypeEnumId="GEOT_STATE" geoName="Ontario" geoCodeAlpha2="ON"/>
-    <!--ShipGatewayAddressId is defauld to null,it will change to updated contactMechId if valid address found-->
     <mantle.party.contact.PostalAddress contactMechId="Fedex_Contact_Ivan" address1="Toronto City Hall 100 Queen St W" city="Toranto"
                                         stateProvinceGeoId="CAN_ON" countryGeoId="CAN" postalCode="M5H2N1"/>
 
