@@ -4,6 +4,9 @@
     <!--Default Authentication Service for Main services -->
         <!--Getting Fedex API Token by tokenId-->
         <service verb="set" noun="FedexApiToken">
+            <in-parameters>
+                <parameter name="shippingGatewayConfigId" required="true"/>
+            </in-parameters>
             <out-parameters>
                 <parameter name="fedexApiToken" required="true"/>
                 <parameter name="tokenType" required="true"/>
@@ -28,7 +31,7 @@
 
                 <!--request Path has Context Type:"application/x-www-form-urlencoded"-->
                 <set field="requestPath" value="grant_type=${apiTokenDetails.grantType}&amp;client_id=${apiTokenDetails.clientId}&amp;client_secret=${apiTokenDetails.clientSecret}"/>
-                <log message="==============Details: ${apiTokenDetails.grantType}, ${apiTokenDetails.clientId},${apiTokenDetails.clientSecret}=============="/>
+                <log message="==============Details: ${requestPath},${apiTokenDetails.grantType}, ${apiTokenDetails.clientId},${apiTokenDetails.clientSecret}=============="/>
                 <script><![CDATA[
                   import org.moqui.util.RestClient;
                   import groovy.json.JsonSlurper;
@@ -36,8 +39,6 @@
                      RestClient restClient = ec.service.rest()
                      restClient.method("POST")
                      restClient.uri(connectUrl)
-                     ec.logger.info("==========${connectUrl}==============")
-                        ec.logger.info("==========${requestPath}==============")
                      restClient.contentType("application/x-www-form-urlencoded")
                      restClient.text(requestPath)
                      RestClient.RestResponse restResponse = restClient.call()
@@ -54,7 +55,23 @@
 
                 <!--Returing fedexApiToken and tokenType-->
                 <log message="==================${responseMap}=============="/>
-                <set field="fedexApiToken" from="responseMap.access_token"/>
+                <!--<set field="fedexApiToken" from="responseMap.access_token"/>-->
+                <entity-find-one entity-name="ShippingGatewayOption" value-field="apiToken">
+                    <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
+                </entity-find-one>
+                <if condition="apiToken==null">
+                    <log level="warn" message="=========GatewayConfigId not found============"/>
+                </if>
+
+                <!--Delete and Create New ShippingGatewayOption-->
+                <set field="optionEnumId" from="apiToken.optionEnumId"/>
+                <entity-delete value-field="apiToken"/>
+                <entity-make-value entity-name="ShippingGatewayOption" value-field="apiToken"/>
+                <set field="apiToken.shippingGatewayConfigId" from="shippingGatewayConfigId"/>
+                <set field="apiToken.optionEnumId" from="optionEnumId"/>
+                <set field="apiToken.optionValue" from="responseMap.access_token"/>
+                <entity-create value-field="apiToken"/>
+
                 <set field="tokenType" from="responseMap.token_type"/>
                 <set field="accountNumber" from="apiTokenDetails.accountNumber"/>
             </actions>
@@ -117,27 +134,51 @@
 
         <in-parameters>
             <parameter name="contactMechId" required="true"/>
+            <parameter name="partyId" required="true"/>
+            <parameter name="shippingGatewayConfigId" required="true"/>
         </in-parameters>
         <out-parameters>
             <parameter name="responseMap" type="Map"/>
+            <parameter name="transactionId"/>
         </out-parameters>
         <actions>
 
-            <service-call name="mantle.fedex.FedexServices.get#AddressMap" in-map='[contactMechId:contactMechId]' out-map='addressMap'/>
-            <if condition="addressMap.validContactMechId==null"><return/></if>
-            <set field="requestMap" from="addressMap.requestMap"/>
+    <!--        &lt;!&ndash;Checking If partyId and ContactMechId are linked&ndash;&gt;
+            <entity-find-one entity-name="mantle.party.contact.PartyContactMechInfo" value-field="partyContactMechLink">
+                <field-map field-name="contactMechId" from="contactMechId"/>
+                <field-map field-name="partyId" from="partyId"/>
+            </entity-find-one>
+            <if condition="!partyContactMechLink">
+                <log message="============PartyContactMech is Not Present=======" level="warn"/>
+                <return/>
+            </if>-->
             <!--Hard Coded Url-->
             <set field="connectUrl" value="https://apis-sandbox.fedex.com/address/v1/addresses/resolve"/>
 
             <!--Returns fedexApiToken and tokenType-->
-            <service-call name="mantle.fedex.FedexServices.set#FedexApiToken" out-map="fedexTokenDetails"/>
+            <log message="==========Ship Config Id: ${shippingGatewayConfigId}========="/>
+            <service-call name="mantle.fedex.FedexServices.set#FedexApiToken"
+                          in-map='[shippingGatewayConfigId:shippingGatewayConfigId]'
+                          out-map='fedexTokenDetails'/>
 
             <!--Check if Token Credentials Are added or not-->
+            <entity-find-one entity-name="ShippingGatewayOption" value-field="apiToken">
+                <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
+            </entity-find-one>
+            <if condition="apiToken==null || apiToken.optionValue==null">
+                <log level="error" message="=============Fedex API Token not available.=============="/>
+                <return/>
+            </if>
             <if condition="fedexTokenDetails==null">
                 <log message="=============Fedex Access Token Credentials
                                   not available.=============="/>
                 <return/>
             </if>
+            <service-call name="mantle.fedex.FedexServices.get#AddressMap"
+                          in-map='[contactMechId:contactMechId, partyId:partyId]'
+                          out-map='addressMap'/>
+            <if condition="!addressMap.validContactMechId"><return/></if>
+            <log level="info" message="========API Token Found: ${connectUrl},${apiToken.optionValue}, ${fedexTokenDetails.tokenType},${addressMap.requestMap}========="/>
             <script><![CDATA[
                   import org.moqui.util.RestClient;
                   import groovy.json.JsonSlurper;
@@ -147,9 +188,8 @@
                      restClient.method("POST")
                      restClient.uri(connectUrl)
                      restClient.contentType("application/json")
-                     restClient.addHeader("Authorization", "${fedexTokenDetails.tokenType} ${fedexTokenDetails.fedexApiToken}")
-                     restClient.addHeader("Content-Type", "application/json")
-                     restClient.jsonObject(requestMap)
+                     restClient.addHeader("Authorization", "${fedexTokenDetails.tokenType} ${apiToken.optionValue}")
+                     restClient.jsonObject(addressMap.requestMap)
                      RestClient.RestResponse restResponse = restClient.call()
 
                      /*Checking Response Code is not verified yet*/
@@ -162,7 +202,11 @@
                     /*Storing response of API in responseMap*/
                     responseMap = restResponse.jsonObject()
             ]]></script>
-            <log message="==============${responseMap}=============="/>
+            <log message="==============Response Map : ${responseMap}=============="/>
+            <log message="==============${responseMap.transactionId}=============="/>
+            <!--Through response parameters Set partyContactMechInfo.trustLevelEnumId to true-->
+            <!--Extracting Information From Response Map-->
+            <set field="transactionId" from="responseMap.transactionId"/>
         </actions>
     </service>
 
@@ -170,6 +214,7 @@
     <service verb="get" noun="AddressMap">
         <in-parameters>
             <parameter name="contactMechId"></parameter>
+            <parameter name="partyId"></parameter>
         </in-parameters>
         <out-parameters>
             <parameter name="validContactMechId"/>
@@ -180,15 +225,26 @@
             <entity-find-one entity-name="mantle.party.contact.PostalAddress" value-field="postalAddress">
                 <field-map field-name="contactMechId" from="contactMechId"/>
             </entity-find-one>
-            <if condition="postalAddress==null">
+            <if condition="!postalAddress">
                 <log message="============Invalid Contact Mech ID=======" level="warn"/>
                 <return/>
             </if>
             <!--Creating Request Map From given Postal Address-->
+            <entity-find-one entity-name="Geo" value-field="geoStateData">
+                <field-map field-name="geoId" from="postalAddress.stateProvinceGeoId"/>
+                <select-field field-name="geoCodeAlpha2"/>
+            </entity-find-one>
+            <entity-find-one entity-name="Geo" value-field="geoCountryData">
+                <field-map field-name="geoId" from="postalAddress.countryGeoId"/>
+            </entity-find-one>
+            <log message="============Geo Data: ${geoCountryData},${geoCountryData.geoCodeAlpha2}, ${geoCountryData.geoId}=========="/>
+            <log message="============Geo Data: ${geoStateData},${geoStateData.geoCodeAlpha2}, ${geoStateData.geoId}=========="/>
+            <set field="stateGeoCode" from="geoStateData.geoCodeAlpha2"/>
+            <set field="countryGeoCode" from="geoCountryData.geoCodeAlpha2"/>
             <set field="adrs" from="streetLines:[postalAddress.address1],
                                         city:postalAddress.city,
-                                        stateOrProvinceCode:postalAddress.stateProvinceGeoId,
-                                        countryCode:postalAddress.countryGeoId,
+                                        stateOrProvinceCode:stateGeoCode,
+                                        countryCode:countryGeoCode,
                                         postalCode:postalAddress.postalCode" type="NewMap"/>
             <set field="requestMap" from="[addressesToValidate:[[address:adrs]]]" type="NewMap"/>
             <set field="validContactMechId" value="true"/>

@@ -1,16 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <entity-facade-xml type="demo">
+    <mantle.party.Party partyId="Fedex Party" partyTypeEnumId="PtyPerson"/>
     <moqui.basic.Enumeration description="Fedex REST API" enumId="FedexGateway" enumTypeId="ShippingGatewayType"/>
+    <moqui.basic.Enumeration description="API Token" enumId="FedexApiToken"/>
     <mantle.shipment.carrier.ShippingGatewayConfig shippingGatewayConfigId="FEDEX_INTEGRATION"
                                                    shippingGatewayTypeEnumId="FedexGateway" description="Fedex API Integration"
                                                    getOrderRateServiceName="mantle.fedex.FedexServices.get#OrderShippingRate"
                                                    validateAddressServiceName="mantle.fedex.FedexServices.validate#PostalAddress"/>
+    <mantle.shipment.carrier.ShippingGatewayOption shippingGatewayConfigId="FEDEX_INTEGRATION" optionEnumId="FedexApiToken"/>
     <mantle.party.contact.ContactMech contactMechId="Fedex_Contact_Ivan" contactMechTypeEnumId="CmtPostalAddress"/>
-    <moqui.basic.Geo geoId="ON" geoTypeEnumId="GEOT_STATE" geoName="Ontario"/>
-    <moqui.basic.Geo geoId="CA" geoTypeEnumId="GEOT_COUNTRY" geoName="California"/>
-    <moqui.basic.Geo geoId="M5H2N1" geoTypeEnumId="GEOT_POSTAL_CODE" geoName="Postal Code Ivan"/>
+    <!--If trustLevelEnumId is true when address is valid-->
+<!--    <mantle.party.contact.PartyContactMechInfo partyId="Fedex Party" contactMechId="PtyPerson" contactMechPurposeId="FedexPartyPurpose"
+                                               fromDate="2010-02-03 02:00" trustLeveLEnumId="false"/>-->
+    <moqui.basic.Geo geoId="CAN_ON" geoTypeEnumId="GEOT_STATE" geoName="Ontario" geoCodeAlpha2="ON"/>
+    <!--ShipGatewayAddressId is defauld to null,it will change to updated contactMechId if valid address found-->
     <mantle.party.contact.PostalAddress contactMechId="Fedex_Contact_Ivan" address1="Toronto City Hall 100 Queen St W" city="Toranto"
-                                        stateProvinceGeoId="ON" countryGeoId="CA" postalCode="M5H2N1"/>
+                                        stateProvinceGeoId="CAN_ON" countryGeoId="CAN" postalCode="M5H2N1"/>
 
 </entity-facade-xml>
