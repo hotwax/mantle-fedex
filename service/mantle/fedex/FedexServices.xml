@@ -1,6 +1,59 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <services xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/service-definition-2.1.xsd">
 
+    <service verb="set" noun="Connection">
+        <in-parameters>
+            <parameter name="method"/>
+            <parameter name="connectUrl"/>
+            <parameter name="contentType"/>
+            <parameter name="requestMap" type="Map"/>
+            <parameter name="requestPath"/>
+            <parameter name="apiTokenType"/>
+            <parameter name="apiTokenValue"/>
+        </in-parameters>
+        <out-parameters>
+            <parameter name="responseMap"/>
+        </out-parameters>
+        <actions>
+
+            <log message="==============Details: ${method}, ${connectUrl} ${contentType} ${requestMap} ${requestPath} ${apiTokenType} ${apiTokenValue}=============="/>
+            <script><![CDATA[
+                  import org.moqui.util.RestClient;
+                  import groovy.json.JsonSlurper;
+                     def connectUrl=connectUrl;
+                     RestClient restClient = ec.service.rest()
+                     restClient.method(method)
+                     restClient.uri(connectUrl)
+                     restClient.contentType(contentType)
+                     System.out.println(apiTokenValue + " "+apiTokenType)
+                     if(requestPath!=null)
+                     {
+                        restClient.text(requestPath)
+                     }
+                     if(apiTokenType!=null && apiTokenValue!=null)
+                     {
+                          restClient.addHeader("Authorization", "${apiTokenType} ${apiTokenValue}")
+                     }
+                     if(requestMap!=null)
+                     {
+                         restClient.jsonObject(requestMap)
+                     }
+                     RestClient.RestResponse restResponse = restClient.call()
+                     /*Checking Response Status Code is not verified yet*/
+                     if (restResponse.statusCode < 200 || restResponse.statusCode > 300) {
+                        errMsgMap = (Map) new JsonSlurper().parseText(restResponse.text())
+                        ec.logger.warn(restResponse.text())
+                        return responseMap
+                    }
+                    /*Storing response of API in responseMap*/
+                    responseMap = restResponse.jsonObject()
+
+                 ]]>
+            </script>
+            <log message="====Response Map: ${responseMap}======="/>
+        </actions>
+
+    </service>
     <!--Default Authentication Service for Main services -->
         <!--Getting Fedex API Token by tokenId-->
         <service verb="set" noun="FedexApiToken">
@@ -14,7 +67,7 @@
             </out-parameters>
             <actions>
 
-                <!--Searching wether the credentials are already available or not.-->
+                <!--Searching wether the credentials are available or not.-->
                 <entity-find-one entity-name="FedexTokenDetails" value-field="apiTokenDetails">
                     <field-map field-name="tokenId" value="1"/>
                 </entity-find-one>
@@ -24,37 +77,15 @@
                     <log message="===============Fedex Access Token Credentials not available.=============="/>
                     <return/>
                 </if>
-
-                <!--Hard Coded Url-->
                 <log message="==============Get Service: API Found=============="/>
-                <set field="connectUrl" value="https://apis-sandbox.fedex.com/oauth/token"/>
-
-                <!--request Path has Context Type:"application/x-www-form-urlencoded"-->
                 <set field="requestPath" value="grant_type=${apiTokenDetails.grantType}&amp;client_id=${apiTokenDetails.clientId}&amp;client_secret=${apiTokenDetails.clientSecret}"/>
-                <log message="==============Details: ${requestPath},${apiTokenDetails.grantType}, ${apiTokenDetails.clientId},${apiTokenDetails.clientSecret}=============="/>
-                <script><![CDATA[
-                  import org.moqui.util.RestClient;
-                  import groovy.json.JsonSlurper;
-                     def connectUrl=connectUrl;
-                     RestClient restClient = ec.service.rest()
-                     restClient.method("POST")
-                     restClient.uri(connectUrl)
-                     restClient.contentType("application/x-www-form-urlencoded")
-                     restClient.text(requestPath)
-                     RestClient.RestResponse restResponse = restClient.call()
-                     /*Checking Response Status Code is not verified yet*/
-                     if (restResponse.statusCode < 200 || restResponse.statusCode > 300) {
-                        errMsgMap = (Map) new JsonSlurper().parseText(restResponse.text())
-                        ec.logger.warn(restResponse.text())
-                        return responseMap
-                    }
-                    /*Storing response of API in responseMap*/
-                    responseMap = restResponse.jsonObject()
-                 ]]>
-                </script>
-
+                <service-call name="mantle.fedex.FedexServices.set#Connection"
+                              in-map="[method:'POST',connectUrl:'https://apis-sandbox.fedex.com/oauth/token',
+                                       contentType:'application/x-www-form-urlencoded',requestMap:requestMap,requestPath:requestPath]"
+                              out-map="responseMap"/>
                 <!--Returing fedexApiToken and tokenType-->
-                <log message="==================${responseMap}=============="/>
+                <log message="==================${responseMap.responseMap}=============="/>
+                    <set field="responseMap" from="responseMap.responseMap"/>
                 <!--<set field="fedexApiToken" from="responseMap.access_token"/>-->
                 <entity-find-one entity-name="ShippingGatewayOption" value-field="apiToken">
                     <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
@@ -69,6 +100,7 @@
                 <entity-make-value entity-name="ShippingGatewayOption" value-field="apiToken"/>
                 <set field="apiToken.shippingGatewayConfigId" from="shippingGatewayConfigId"/>
                 <set field="apiToken.optionEnumId" from="optionEnumId"/>
+                <log message="===API Token ${apiToken} ${responseMap.access_token}===="/>
                 <set field="apiToken.optionValue" from="responseMap.access_token"/>
                 <entity-create value-field="apiToken"/>
 
@@ -152,13 +184,9 @@
                 <log message="============PartyContactMech is Not Present=======" level="warn"/>
                 <return/>
             </if>-->
-            <!--Hard Coded Url-->
-            <set field="connectUrl" value="https://apis-sandbox.fedex.com/address/v1/addresses/resolve"/>
-
             <!--Returns fedexApiToken and tokenType-->
             <log message="==========Ship Config Id: ${shippingGatewayConfigId}========="/>
-            <service-call name="mantle.fedex.FedexServices.set#FedexApiToken"
-                          in-map='[shippingGatewayConfigId:shippingGatewayConfigId]'
+            <service-call name="mantle.fedex.FedexServices.set#FedexApiToken" in-map='[shippingGatewayConfigId:shippingGatewayConfigId]'
                           out-map='fedexTokenDetails'/>
 
             <!--Check if Token Credentials Are added or not-->
@@ -179,29 +207,11 @@
                           out-map='addressMap'/>
             <if condition="!addressMap.validContactMechId"><return/></if>
             <log level="info" message="========API Token Found: ${connectUrl},${apiToken.optionValue}, ${fedexTokenDetails.tokenType},${addressMap.requestMap}========="/>
-            <script><![CDATA[
-                  import org.moqui.util.RestClient;
-                  import groovy.json.JsonSlurper;
-
-                     def connectUrl=connectUrl;
-                     RestClient restClient = ec.service.rest()
-                     restClient.method("POST")
-                     restClient.uri(connectUrl)
-                     restClient.contentType("application/json")
-                     restClient.addHeader("Authorization", "${fedexTokenDetails.tokenType} ${apiToken.optionValue}")
-                     restClient.jsonObject(addressMap.requestMap)
-                     RestClient.RestResponse restResponse = restClient.call()
-
-                     /*Checking Response Code is not verified yet*/
-                     if (restResponse.statusCode < 200 || restResponse.statusCode > 300) {
-                        errMsgMap = (Map) new JsonSlurper().parseText(restResponse.text())
-                        ec.logger.warn(restResponse.text())
-                        return responseMap
-                    }
-
-                    /*Storing response of API in responseMap*/
-                    responseMap = restResponse.jsonObject()
-            ]]></script>
+            <service-call name="mantle.fedex.FedexServices.set#Connection"
+                          in-map="[method:'POST',connectUrl:'https://apis-sandbox.fedex.com/address/v1/addresses/resolve',
+                                   contentType:'application/json',requestMap:addressMap.requestMap,requestPath:requestPath,
+                                   apiTokenType:fedexTokenDetails.tokenType,apiTokenValue:apiToken.optionValue]"
+                          out-map="responseMap"/>
             <log message="==============Response Map : ${responseMap}=============="/>
             <log message="==============${responseMap.transactionId}=============="/>
             <!--Through response parameters Set partyContactMechInfo.trustLevelEnumId to true-->
