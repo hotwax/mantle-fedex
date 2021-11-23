@@ -8,16 +8,17 @@
                 <parameter name="method"/>
                 <parameter name="connectUrl"/>
                 <parameter name="contentType"/>
-                <parameter name="requestMap" type="Map"/>
+                <parameter name="requestMap"/>
                 <parameter name="requestPath"/>
                 <parameter name="apiTokenValue"/>
+                <parameter name="xLocale"/>
             </in-parameters>
             <out-parameters>
                 <parameter name="responseMap"/>
             </out-parameters>
             <actions>
 
-            <log message="==============Connection Details: METHOD: ${method}, CONNECTION URL: ${connectUrl}, CONTENT TYPE: ${contentType} REQUEST MAP: ${requestMap} REQUEST MAP: ${requestPath} TOKEN VALUE:${apiTokenValue}=============="/>
+            <log message="==============Connection Details: METHOD: ${method}, CONNECTION URL: ${connectUrl}, CONTENT TYPE: ${contentType} REQUEST MAP: ${requestMap} REQUEST PATH: ${requestPath} TOKEN VALUE:${apiTokenValue}=============="/>
                 <script><![CDATA[
                       import org.moqui.util.RestClient;
                       import groovy.json.JsonSlurper;
@@ -34,6 +35,10 @@
                          if(apiTokenValue!=null)
                          {
                               restClient.addHeader("Authorization", "${apiTokenValue}")
+                         }
+                         if(xLocale!=null)
+                         {
+                              restClient.addHeader("x-locale", "${xLocale}")
                          }
                          if(requestMap!=null)
                          {
@@ -165,7 +170,7 @@
             <log message="==========Ship Config Id: ${shippingGatewayConfigId}========="/>
             <service-call name="mantle.fedex.FedexServices.set#FedexApiToken" in-map='[shippingGatewayConfigId:shippingGatewayConfigId]'
                           out-map='fedexTokenDetails'/>
-            <if condition="fedexTokenDetails==null"></if>
+            <if condition="fedexTokenDetails==null"><return/></if>
             <service-call name="mantle.fedex.FedexServices.get#AddressMap" in-map='[contactMechId:contactMechId, partyId:partyId]'
                           out-map='addressMap'/>
             <if condition="!addressMap"><return/></if>
@@ -220,6 +225,45 @@
             <set field="validContactMechId" value="true"/>
             <log message="============Generated Request Map: ${requestMap}=============="/>
 
+        </actions>
+    </service>
+    <!--RateAndTrasitTime Service-->
+    <service verb="get" noun="OrderShippingRate">
+        <description>Remove accountNumber tag, it will be automatically added.</description>
+        <in-parameters>
+            <parameter name="shippingGatewayConfigId" required="true"/>
+            <parameter name="requestMap" required="true"/>
+        </in-parameters>
+        <out-parameters>
+            <parameter name="responseMap" required="true"/>
+        </out-parameters>
+        <actions>
+
+            <log message="============Request Map: ${requestMap}=============="/>
+            <log message="==========Ship Config Id: ${shippingGatewayConfigId}========="/>
+            <service-call name="mantle.fedex.FedexServices.set#FedexApiToken" in-map='[shippingGatewayConfigId:shippingGatewayConfigId]'
+                          out-map='fedexTokenDetails'/>
+            <if condition="fedexTokenDetails==null"><return/></if>
+            <log message="========API Token Found: ${connectUrl},${fedexTokenDetails.optionValue},${requestMap}========="/>
+            <service-call name="mantle.fedex.FedexServices.set#Connection"
+                          in-map="[method:'POST',connectUrl:'https://apis-sandbox.fedex.com/rate/v1/rates/quotes',
+                                   contentType:'application/json',requestMap:requestMap,
+                                   apiTokenValue:fedexTokenDetails.optionValue,xLocale:'en-US']"
+                          out-map="responseMap"/>
+            <log message="==============Validation Response Map : ${responseMap.responseMap}=============="/>
+            <set field="responseMap" from="responseMap.responseMap"/>
+
+            <!--Extracting Details of Response Map-->
+            <iterate list="responseMap" entry="tags">
+                <if condition="tags.key=='output'"><then>
+                    <iterate list="tags.value" entry="outputTags">
+                        <log message="========== OutputTags: ${outputTags.key} and value ${outputTags.value}======="/>
+                    </iterate>
+                </then>
+                    <else>
+                        <log message="========== Tags: ${tags.key} and value ${tags.value}======="/>
+                    </else></if>
+            </iterate>
         </actions>
     </service>
 </services>
