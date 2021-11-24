@@ -101,7 +101,8 @@
             <parameter name="shippingGatewayConfigId" required="true"/>
         </in-parameters>
         <out-parameters>
-            <parameter name="responseMap" type="Map"/>
+            <parameter name="contactMechId"/>
+            <parameter name="postalAddress"/>
         </out-parameters>
         <actions>
 
@@ -110,7 +111,7 @@
                 <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
                 <field-map field-name="optionEnumId" value="FedexApiToken"/>
             </entity-find-one>
-            <if condition="apiTokenOpt.optionValue"><log level="warn" message="Shipping gateway ${shippingGatewayConfigId} has no FedexApiToken, not validating address"/><return/></if>
+            <if condition="!apiTokenOpt.optionValue"><log level="warn" message="Shipping gateway ${shippingGatewayConfigId} has no FedexApiToken, not validating address"/><return/></if>
 
             <!--Converting Address Data to JSON Request Map-->
             <service-call name="mantle.fedex.FedexServices.get#AddressMap" in-map='[contactMechId:contactMechId, partyId:partyId]'
@@ -123,7 +124,70 @@
                                    contentType:'application/json',requestMap:addressMap.requestMap,apiTokenValue:apiTokenOpt.optionValue]"
                           out-map="responseMap"/>
             <log message="In validate#PostalAddress service, returned ${responseMap.responseMap}"/>
+            <if condition="responseMap.responseMap==null|| responseMap.responseMap==''">
+                <log level="warn" message="In validate#PostalAddress service, response map is empty"/>
+            </if>
             <set field="responseMap" from="responseMap.responseMap"/>
+            <!--Extracting data from ResponseMap-->
+            <set field="resolvedAddresses" from="responseMap.output.resolvedAddresses[0]"/>
+<!--        <log message="${resolvedAddresses.streetLinesToken[0]}"/>
+            <log message="${resolvedAddresses.city}"/>
+            <log message="${resolvedAddresses.stateOrProvinceCode}"/>
+            <log message="${resolvedAddresses.postalCode}"/>
+            <log message="${resolvedAddresses.countryCode}"/>
+            <log message="${resolvedAddresses.customerMessage}"/>
+            <log message="${resolvedAddresses.parsedPostalCode}"/>
+            <log message="${resolvedAddresses.classification}"/>
+            <log message="${resolvedAddresses.postOfficeBox}"/>
+            <log message="${resolvedAddresses.normalizedStatusNameDPV}"/>
+            <log message="${resolvedAddresses.standardizedStatusNameMatchSource}"/>
+            <log message="${resolvedAddresses.resolutionMethodName}"/>
+            <log message="${resolvedAddresses.attributes.AddressType}"/>
+            <log message="${resolvedAddresses.attributes.InterpolatedStreetAddress}"/>-->
+
+            <!--Verifying Correctness of Address-->
+            <set field="trustLevelEnumId" from="(resolvedAddresses.attributes.InterpolatedStreetAddress=='false'&amp;&amp;
+                 resolvedAddresses.attributes.AddressType=='STANDARDIZED')? 'CmtlValid' :'CmtlInvalid'"/>
+            <log message="In validate#PostalAddress service, trustLevelEnumId: ${trustLevelEnumId}"/>
+
+            <!--Updating trustLevelEnumId value-->
+            <entity-find-one entity-name="mantle.party.contact.ContactMech" value-field="origContactMech"/>
+            <set field="origContactMech.trustLevelEnumId" from="trustLevelEnumId"/>
+            <entity-update value-field="origContactMech"/>
+
+            <!--Finding stateOrProvinceCode through geoId of countryCode-->
+            <entity-find-one entity-name="Geo" value-field="geoCountryData">
+                <field-map field-name="geoTypeEnumId" value="GEOT_COUNTRY"/>
+                <field-map field-name="geoCodeAlpha2" from="resolvedAddresses.countryCode"/>
+                <select-field field-name="geoCodeAlpha2"/>
+            </entity-find-one>
+            <entity-find-one entity-name="GeoAssocAndToDetail" value-field="geoStateData">
+                <field-map field-name="geoId" from="geoCountryData.geoId"/>
+                <field-map field-name="geoCodeAlpha2" from="resolvedAddresses.stateOrProvinceCode"/>
+                <select-field field-name="toGeoId"/>
+            </entity-find-one>
+
+            <!--A Section of input parameters of update#PartyPostalAddress Service-->
+             <set field="paInMap" from="[contactMechId:contactMechId,address1:resolvedAddresses.streetLinesToken[0],
+                        city:resolvedAddresses.city, stateProvinceGeoId:geoStateData.toGeoId,
+                        postalCode:resolvedAddresses.postalCode]"/>
+
+            <if condition="partyId">
+                <entity-find entity-name="mantle.party.contact.PartyContactMech" list="origPcmList">
+                    <econdition field-name="partyId"/><econdition field-name="contactMechId"/>
+                </entity-find>
+                <service-call name="mantle.party.ContactServices.update#PartyPostalAddress" out-map="paOut"
+                              in-map="paInMap + [partyId:partyId, expireCurrent:false, contactMechPurposeId:'PostalShippingDest']"/>
+                <log message="ContactMechId updated from ${contactMechId} to ${paOut.contactMechId}"/>
+                <set field="contactMechId" from="paOut.contactMechId"/>
+                <entity-find-one entity-name="mantle.party.contact.PostalAddress" value-field="postalAddress"/>
+            </if>
+
+            <!--Updating trustLevelEnumId value-->
+            <entity-find-one entity-name="mantle.party.contact.ContactMech" value-field="contactMech"/>
+            <set field="contactMech.trustLevelEnumId" from="trustLevelEnumId"/>
+            <entity-update value-field="contactMech"/>
+            <entity-update value-field="postalAddress"/>
         </actions>
     </service>
 
@@ -161,6 +225,7 @@
             <set field="requestMap" from="[addressesToValidate:[[address:adrs]]]" type="NewMap"/>
             <set field="validContactMechId" value="true"/>
             <log message="In get#AddressMap service, returned ${requestMap}=============="/>
+
         </actions>
     </service>
     <!--RateAndTrasitTime Service-->
@@ -180,7 +245,7 @@
                 <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
                 <field-map field-name="optionEnumId" value="FedexApiToken"/>
             </entity-find-one>
-            <if condition="apiTokenOpt.optionValue"><log level="warn" message="Shipping gateway ${shippingGatewayConfigId} has no FedexApiToken, not getting rates"/><return/></if>
+            <if condition="!apiTokenOpt.optionValue"><log level="warn" message="Shipping gateway ${shippingGatewayConfigId} has no FedexApiToken, not getting rates"/><return/></if>
 
             <!--Setting Connection With Fedex-->
             <service-call name="mantle.fedex.FedexServices.set#Connection"
