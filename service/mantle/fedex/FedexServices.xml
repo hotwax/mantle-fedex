@@ -10,15 +10,12 @@
                 <parameter name="contentType"/>
                 <parameter name="requestMap" type="Map"/>
                 <parameter name="requestPath"/>
-                <parameter name="apiTokenType"/>
                 <parameter name="apiTokenValue"/>
             </in-parameters>
             <out-parameters>
                 <parameter name="responseMap"/>
             </out-parameters>
             <actions>
-
-                <log message="==============Connection Details: METHOD: ${method}, CONNECTION URL: ${connectUrl}, CONTENT TYPE: ${contentType} REQUEST MAP: ${requestMap} REQUEST MAP: ${requestPath} TOKEN TYPE: ${apiTokenType} TOKEN VALUE:${apiTokenValue}=============="/>
                 <script><![CDATA[
                       import org.moqui.util.RestClient;
                       import groovy.json.JsonSlurper;
@@ -27,14 +24,13 @@
                          restClient.method(method)
                          restClient.uri(connectUrl)
                          restClient.contentType(contentType)
-                         System.out.println(apiTokenValue + " "+apiTokenType)
-                         if(requestPath!=null)
+                         if(requestPath!=null && requestPath!="")
                          {
                             restClient.text(requestPath)
                          }
-                         if(apiTokenType!=null && apiTokenValue!=null)
+                         if(apiTokenValue!=null)
                          {
-                              restClient.addHeader("Authorization", "${apiTokenType} ${apiTokenValue}")
+                              restClient.addHeader("Authorization", "${apiTokenValue}")
                          }
                          if(requestMap!=null)
                          {
@@ -48,66 +44,11 @@
                             return responseMap
                         }
                         responseMap = restResponse.jsonObject()
-
                      ]]>
                 </script>
-                <log message="====Connection Response Map: ${responseMap}======="/>
+            <log message="In set#Connection service, returned: ${responseMap}"/>
             </actions>
         </service>
-    <!--Default Authentication Service for Main services -->
-        <!--Getting Fedex API Token by tokenId-->
-        <service verb="set" noun="FedexApiToken">
-            <in-parameters>
-                <parameter name="shippingGatewayConfigId" required="true"/>
-            </in-parameters>
-            <out-parameters>
-                <parameter name="tokenType" required="true"/>
-                <parameter name="accountNumber" required="true"/>
-            </out-parameters>
-            <actions>
-
-                <!--Searching Credentials-->
-                <entity-find-one entity-name="FedexTokenDetails" value-field="apiTokenDetails">
-                    <field-map field-name="tokenId" value="1"/>
-                </entity-find-one>
-
-                <!--Return if No Details-->
-                <if condition="!apiTokenDetails">
-                    <log level="error" message="===============Fedex Access Token Credentials not available.=============="/>
-                    <return/>
-                </if>
-                <set field="requestPath" value="grant_type=${apiTokenDetails.grantType}&amp;client_id=${apiTokenDetails.clientId}&amp;client_secret=${apiTokenDetails.clientSecret}"/>
-                <service-call name="mantle.fedex.FedexServices.set#Connection"
-                              in-map="[method:'POST',connectUrl:'https://apis-sandbox.fedex.com/oauth/token',
-                                       contentType:'application/x-www-form-urlencoded',requestMap:requestMap,requestPath:requestPath]"
-                              out-map="responseMap"/>
-                <set field="responseMap" from="responseMap.responseMap"/>
-
-                <!--Fetching API Token-->
-                <entity-find-one entity-name="ShippingGatewayOption" value-field="apiToken">
-                    <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
-                </entity-find-one>
-                <if condition="!apiToken">
-                    <log level="error" message="=========GatewayConfigId not found============"/>
-                    <return/>
-                </if>
-
-                <!--Delete and Create New ShippingGatewayOption-->
-                <set field="optionEnumId" from="apiToken.optionEnumId"/>
-                <entity-delete value-field="apiToken"/>
-                <entity-make-value entity-name="ShippingGatewayOption" value-field="apiToken"/>
-                <set field="apiToken.shippingGatewayConfigId" from="shippingGatewayConfigId"/>
-                <set field="apiToken.optionEnumId" from="optionEnumId"/>
-                <log message="===API Token ${apiToken} ${responseMap.access_token}===="/>
-                <set field="apiToken.optionValue" from="responseMap.access_token"/>
-                <entity-create value-field="apiToken"/>
-
-                <!--Return Remaining Details-->
-                <set field="tokenType" from="responseMap.token_type"/>
-                <set field="accountNumber" from="apiTokenDetails.accountNumber"/>
-            </actions>
-        </service>
-
     <!--Default Authentication Service for Main services -->
         <!--Set/Generate new Fedex API Token-->
         <service verb="store" noun="FedexTokenDetails">
@@ -124,12 +65,10 @@
                     <parameter name="tokenId"/>
                 </out-parameters>
                 <actions>
-
                     <entity-find-one entity-name="FedexTokenDetails" value-field="fedexTokenDetails">
                         <field-map field-name="tokenId" value="1"/>
                     </entity-find-one>
                     <set field="tokenId" value="1"/>
-
                     <!--Create new token/Update current token-->
                     <if condition="fedexTokenDetails==null">
                         <entity-make-value entity-name="FedexTokenDetails" value-field="fedexTokenDetails"/>
@@ -148,9 +87,7 @@
                         <set field="fedexTokenDetails.accountNumber" from="accountNumber"/>
                         <entity-update value-field="fedexTokenDetails"/>
                     </else>
-
-                    <!--Store these values in table-->
-                <log message="============TOKEN ID: ${tokenId},GRANT TYPE: ${grantType},CLIENT ID: ${clientId},CLIENT SECRET: ${clientSecret},ACCOUNT NUMBER: ${accountNumber}=============="/>
             </actions>
         </service>
+
 </services>
