@@ -5,6 +5,7 @@
         <service verb="get" noun="OrderShippingRate">
             <description>Remove accountNumber tag, it will be automatically added.</description>
             <in-parameters>
+                <parameter name="shippingGatewayConfigId" required="true"/>
                 <parameter name="requestMap" required="true"/>
             </in-parameters>
             <out-parameters>
@@ -12,60 +13,21 @@
             </out-parameters>
             <actions>
 
-                <log message="============${requestMap}=============="/>
+            <!--Searching FedexApiToken-->
+            <entity-find-one entity-name="ShippingGatewayOption" value-field="apiTokenOpt">
+                <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
+                <field-map field-name="optionEnumId" value="FedexApiToken"/>
+            </entity-find-one>
+            <if condition="apiTokenOpt.optionValue"><log level="warn" message="Shipping gateway ${shippingGatewayConfigId} has no FedexApiToken, not getting rates"/><return/></if>
 
-                <!--Hard Coded Url-->
-                <set field="connectUrl" value="https://apis-sandbox.fedex.com/rate/v1/rates/quotes"/>
-
-                <!--Returns fedexApiToken and tokenType-->
-                <service-call name="mantle.fedex.FedexServices.set#FedexApiToken" out-map="fedexTokenDetails"/>
-
-                <!--Check if Token Credentials Are added or not-->
-                <if condition="fedexTokenDetails==null">
-                    <log message="=============Fedex Access Token Credentials not available.=============="/>
-                    <return/>
-                </if>
-
-                <script><![CDATA[
-                      import org.moqui.util.RestClient;
-                      import groovy.json.JsonSlurper;
-                         def connectUrl=connectUrl;
-                         RestClient restClient = ec.service.rest()
-                         restClient.method("POST")
-                         restClient.uri(connectUrl)
-                         restClient.contentType("application/json")
-                         restClient.addHeader("x-locale","en-US")
-                         restClient.addHeader("Authorization", "${fedexTokenDetails.tokenType} ${fedexTokenDetails.fedexApiToken}")
-                         restClient.addHeader("Content-Type", "application/json")
-                         restClient.jsonObject(requestMap)
-                         RestClient.RestResponse restResponse = restClient.call()
-                         /*Checking Response Code is not verified yet*/
-                         if (restResponse.statusCode < 200 || restResponse.statusCode > 300) {
-                            errMsgMap = (Map) new JsonSlurper().parseText(restResponse.text())
-                            ec.logger.warn(restResponse.text())
-                            return responseMap
-                        }
-                        /*Storing response of API in responseMap*/
-                        responseMap = restResponse.jsonObject()
-                      ]]>
-                </script>
-                <log message="============ResponseMap: ${responseMap}=============="/>
-               <!-- <iterate list="responseMap" entry="value">
-                    <set field="responseMapContent" from="[responseMapContent]"
-                </iterate>-->
-                
-                <!--Extracting Details of Response Map-->
-                <log message="============ResponseMapContent: ${responseMapContent}=============="/>
-                <iterate list="responseMap" entry="tags">
-                    <if condition="tags.key=='output'"><then>
-                        <iterate list="tags.value" entry="outputTags">
-                             <log message="========== OutputTags: ${outputTags.key} and value ${outputTags.value}======="/>
-                        </iterate>
-                    </then>
-                    <else>
-                        <log message="========== Tags: ${tags.key} and value ${tags.value}======="/>
-                    </else></if>
-                </iterate>
-            </actions>
-        </service>
+            <!--Setting Connection With Fedex-->
+            <service-call name="mantle.fedex.FedexServices.set#Connection"
+                          in-map="[method:'POST',connectUrl:'https://apis-sandbox.fedex.com/rate/v1/rates/quotes',
+                                   contentType:'application/json',requestMap:requestMap,
+                                   apiTokenValue:apiTokenOpt.optionValue,xLocale:'en-US']"
+                          out-map="responseMap"/>
+            <log message="In get#OrderShippingRate, returned ${responseMap.responseMap}=============="/>
+            <set field="responseMap" from="responseMap.responseMap"/>
+        </actions>
+    </service>
 </services>
