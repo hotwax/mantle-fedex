@@ -7,8 +7,8 @@
         <!--tokenId will always remain one-->
         <field name="tokenId" type="id" is-pk="true"/>
         <field name="grantType" type="text-long"/>
-        <field name="clientId" type="text-long"/>
-        <field name="clientSecret" type="text-long"/>
-        <field name="accountNumber" type="text-short"/>
+        <field name="clientId" type="text-long"><description>ClientId should be Encrypted.</description></field>
+        <field name="clientSecret" type="text-long"><description>ClientSecret should be Encrypted.</description></field>
+        <field name="accountNumber" type="text-short"><description>AccountNumber should be Encrypted.</description></field>
     </entity>
 </entities>
