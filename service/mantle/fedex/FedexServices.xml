@@ -8,17 +8,14 @@
                 <parameter name="method"/>
                 <parameter name="connectUrl"/>
                 <parameter name="contentType"/>
-                <parameter name="requestMap"/>
+                <parameter name="requestMap" type="Map"/>
                 <parameter name="requestPath"/>
                 <parameter name="apiTokenValue"/>
-                <parameter name="xLocale"/>
             </in-parameters>
             <out-parameters>
                 <parameter name="responseMap"/>
             </out-parameters>
             <actions>
-
-            <log message="==============Connection Details: METHOD: ${method}, CONNECTION URL: ${connectUrl}, CONTENT TYPE: ${contentType} REQUEST MAP: ${requestMap} REQUEST PATH: ${requestPath} TOKEN VALUE:${apiTokenValue}=============="/>
                 <script><![CDATA[
                       import org.moqui.util.RestClient;
                       import groovy.json.JsonSlurper;
@@ -27,18 +24,13 @@
                          restClient.method(method)
                          restClient.uri(connectUrl)
                          restClient.contentType(contentType)
-                         System.out.println(apiTokenValue)
-                         if(requestPath!=null)
+                         if(requestPath!=null && requestPath!="")
                          {
                             restClient.text(requestPath)
                          }
                          if(apiTokenValue!=null)
                          {
                               restClient.addHeader("Authorization", "${apiTokenValue}")
-                         }
-                         if(xLocale!=null)
-                         {
-                              restClient.addHeader("x-locale", "${xLocale}")
                          }
                          if(requestMap!=null)
                          {
@@ -52,64 +44,11 @@
                             return responseMap
                         }
                         responseMap = restResponse.jsonObject()
-
                      ]]>
                 </script>
-                <log message="====Connection Response Map: ${responseMap}======="/>
+                <log message="In set#Connection service, returned: ${responseMap}"/>
             </actions>
     </service>
-    <!--Default Authentication Service for Main services -->
-        <!--Getting Fedex API Token by tokenId-->
-        <service verb="set" noun="FedexApiToken">
-            <in-parameters>
-                <parameter name="shippingGatewayConfigId" required="true"/>
-            </in-parameters>
-            <out-parameters>
-                <parameter name="accountNumber" required="true"/>
-                <parameter name="optionValue" required="true"/>
-            </out-parameters>
-            <actions>
-
-                <!--Searching Credentials-->
-                <entity-find-one entity-name="FedexTokenDetails" value-field="apiTokenDetails">
-                    <field-map field-name="tokenId" value="1"/>
-                </entity-find-one>
-                <!--Return if No Details-->
-                <if condition="!apiTokenDetails">
-                    <log level="error" message="===============Fedex Access Token Credentials not available.=============="/>
-                    <return/>
-                </if>
-                <set field="requestPath" value="grant_type=${apiTokenDetails.grantType}&amp;client_id=${apiTokenDetails.clientId}&amp;client_secret=${apiTokenDetails.clientSecret}"/>
-                <service-call name="mantle.fedex.FedexServices.set#Connection"
-                              in-map="[method:'POST',connectUrl:'https://apis-sandbox.fedex.com/oauth/token',
-                                       contentType:'application/x-www-form-urlencoded',requestMap:requestMap,requestPath:requestPath]"
-                              out-map="responseMap"/>
-                <set field="responseMap" from="responseMap.responseMap"/>
-                <!--Fetching API Token-->
-                <entity-find-one entity-name="ShippingGatewayOption" value-field="apiToken">
-                    <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
-                </entity-find-one>
-                <if condition="!apiToken">
-                    <log level="error" message="=========GatewayConfigId not found============"/>
-                    <return/>
-                </if>
-
-                <!--Delete and Create New ShippingGatewayOption-->
-                <set field="optionEnumId" from="apiToken.optionEnumId"/>
-                <entity-delete value-field="apiToken"/>
-                <entity-make-value entity-name="ShippingGatewayOption" value-field="apiToken"/>
-                <set field="apiToken.shippingGatewayConfigId" from="shippingGatewayConfigId"/>
-                <set field="apiToken.optionEnumId" from="optionEnumId"/>
-                <log message="===API Token ${apiToken} ${responseMap.access_token}===="/>
-                <set field="apiToken.optionValue" value="${responseMap.token_type} ${responseMap.access_token}"/>
-                <entity-create value-field="apiToken"/>
-
-                <!--Return Remaining Details-->
-                <set field="accountNumber" from="apiTokenDetails.accountNumber"/>
-                <set field="optionValue" from="apiToken.optionValue"/>
-            </actions>
-        </service>
-
     <!--Default Authentication Service for Main services -->
         <!--Set/Generate new Fedex API Token-->
         <service verb="store" noun="FedexTokenDetails">
@@ -148,8 +87,6 @@
                         <set field="fedexTokenDetails.accountNumber" from="accountNumber"/>
                         <entity-update value-field="fedexTokenDetails"/>
                     </else>
-                    <!--Store these values in table-->
-                <log message="============TOKEN ID: ${tokenId},GRANT TYPE: ${grantType},CLIENT ID: ${clientId},CLIENT SECRET: ${clientSecret},ACCOUNT NUMBER: ${accountNumber}=============="/>
             </actions>
         </service>
 
@@ -167,24 +104,26 @@
             <parameter name="responseMap" type="Map"/>
         </out-parameters>
         <actions>
-            <log message="==========Ship Config Id: ${shippingGatewayConfigId}========="/>
-            <service-call name="mantle.fedex.FedexServices.set#FedexApiToken" in-map='[shippingGatewayConfigId:shippingGatewayConfigId]'
-                          out-map='fedexTokenDetails'/>
-            <if condition="fedexTokenDetails==null"><return/></if>
+
+            <!--Searching FedexApiToken-->
+            <entity-find-one entity-name="ShippingGatewayOption" value-field="apiTokenOpt">
+                <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
+                <field-map field-name="optionEnumId" value="FedexApiToken"/>
+            </entity-find-one>
+            <if condition="apiTokenOpt.optionValue"><log level="warn" message="Shipping gateway ${shippingGatewayConfigId} has no FedexApiToken, not validating address"/><return/></if>
+
+            <!--Converting Address Data to JSON Request Map-->
             <service-call name="mantle.fedex.FedexServices.get#AddressMap" in-map='[contactMechId:contactMechId, partyId:partyId]'
                           out-map='addressMap'/>
             <if condition="!addressMap"><return/></if>
-            <log message="========API Token Found: ${connectUrl},${fedexTokenDetails.optionValue},${addressMap.requestMap}========="/>
+
+            <!--Setting Connection With Fedex-->
             <service-call name="mantle.fedex.FedexServices.set#Connection"
                           in-map="[method:'POST',connectUrl:'https://apis-sandbox.fedex.com/address/v1/addresses/resolve',
-                                   contentType:'application/json',requestMap:addressMap.requestMap,requestPath:requestPath,
-                                   apiTokenValue:fedexTokenDetails.optionValue]"
+                                   contentType:'application/json',requestMap:addressMap.requestMap,apiTokenValue:apiTokenOpt.optionValue]"
                           out-map="responseMap"/>
-            <log message="==============Validation Response Map : ${responseMap.responseMap}=============="/>
+            <log message="In validate#PostalAddress service, returned ${responseMap.responseMap}"/>
             <set field="responseMap" from="responseMap.responseMap"/>
-            <!--Through response parameters set partyContactMechInfo.trustLevelEnumId to true-->
-            <!--Extracting Information From Response Map-->
-            <set field="transactionId" from="responseMap.transactionId"/>
         </actions>
     </service>
 
@@ -195,7 +134,7 @@
             <parameter name="partyId"></parameter>
         </in-parameters>
         <out-parameters>
-            <parameter name="requestMap"/>
+            <parameter name="requestMap" type="Map"/>
         </out-parameters>
         <actions>
             <!--Validating ContactMech Id-->
@@ -203,8 +142,7 @@
                 <field-map field-name="contactMechId" from="contactMechId"/>
             </entity-find-one>
             <if condition="!postalAddress">
-                <log level="error" message="============Invalid Contact Mech ID=======" />
-                <return/>
+                <return type="danger" message="Invalid Contact Mech ID"/>
             </if>
             <!--Creating Request Map From given Postal Address-->
             <entity-find-one entity-name="Geo" value-field="geoStateData">
@@ -213,9 +151,8 @@
             </entity-find-one>
             <entity-find-one entity-name="Geo" value-field="geoCountryData">
                 <field-map field-name="geoId" from="postalAddress.countryGeoId"/>
+                <select-field field-name="geoCodeAlpha2"/>
             </entity-find-one>
-            <log message="============Geo Data: ${geoCountryData},${geoCountryData.geoCodeAlpha2}, ${geoCountryData.geoId}=========="/>
-            <log message="============Geo Data: ${geoStateData},${geoStateData.geoCodeAlpha2}, ${geoStateData.geoId}=========="/>
             <set field="adrs" from="streetLines:[postalAddress.address1],
                                     city:postalAddress.city,
                                     stateOrProvinceCode:geoStateData.geoCodeAlpha2,
@@ -223,8 +160,7 @@
                                     postalCode:postalAddress.postalCode" type="NewMap"/>
             <set field="requestMap" from="[addressesToValidate:[[address:adrs]]]" type="NewMap"/>
             <set field="validContactMechId" value="true"/>
-            <log message="============Generated Request Map: ${requestMap}=============="/>
-
+            <log message="In get#AddressMap service, returned ${requestMap}=============="/>
         </actions>
     </service>
     <!--RateAndTrasitTime Service-->
@@ -239,31 +175,21 @@
         </out-parameters>
         <actions>
 
-            <log message="============Request Map: ${requestMap}=============="/>
-            <log message="==========Ship Config Id: ${shippingGatewayConfigId}========="/>
-            <service-call name="mantle.fedex.FedexServices.set#FedexApiToken" in-map='[shippingGatewayConfigId:shippingGatewayConfigId]'
-                          out-map='fedexTokenDetails'/>
-            <if condition="fedexTokenDetails==null"><return/></if>
-            <log message="========API Token Found: ${connectUrl},${fedexTokenDetails.optionValue},${requestMap}========="/>
+            <!--Searching FedexApiToken-->
+            <entity-find-one entity-name="ShippingGatewayOption" value-field="apiTokenOpt">
+                <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
+                <field-map field-name="optionEnumId" value="FedexApiToken"/>
+            </entity-find-one>
+            <if condition="apiTokenOpt.optionValue"><log level="warn" message="Shipping gateway ${shippingGatewayConfigId} has no FedexApiToken, not getting rates"/><return/></if>
+
+            <!--Setting Connection With Fedex-->
             <service-call name="mantle.fedex.FedexServices.set#Connection"
                           in-map="[method:'POST',connectUrl:'https://apis-sandbox.fedex.com/rate/v1/rates/quotes',
                                    contentType:'application/json',requestMap:requestMap,
-                                   apiTokenValue:fedexTokenDetails.optionValue,xLocale:'en-US']"
+                                   apiTokenValue:apiTokenOpt.optionValue,xLocale:'en-US']"
                           out-map="responseMap"/>
-            <log message="==============Validation Response Map : ${responseMap.responseMap}=============="/>
+            <log message="In get#OrderShippingRate, returned ${responseMap.responseMap}=============="/>
             <set field="responseMap" from="responseMap.responseMap"/>
-
-            <!--Extracting Details of Response Map-->
-            <iterate list="responseMap" entry="tags">
-                <if condition="tags.key=='output'"><then>
-                    <iterate list="tags.value" entry="outputTags">
-                        <log message="========== OutputTags: ${outputTags.key} and value ${outputTags.value}======="/>
-                    </iterate>
-                </then>
-                    <else>
-                        <log message="========== Tags: ${tags.key} and value ${tags.value}======="/>
-                    </else></if>
-            </iterate>
         </actions>
     </service>
 </services>

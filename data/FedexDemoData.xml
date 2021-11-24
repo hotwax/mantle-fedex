@@ -8,14 +8,10 @@
                                                    shippingGatewayTypeEnumId="FedexGateway" description="Fedex API Integration"
                                                    getOrderRateServiceName="mantle.fedex.FedexServices.get#OrderShippingRate"
                                                    validateAddressServiceName="mantle.fedex.FedexServices.validate#PostalAddress"/>
-    <mantle.shipment.carrier.ShippingGatewayOption shippingGatewayConfigId="FEDEX_INTEGRATION" optionEnumId="FedexApiToken"/>
     <mantle.party.contact.ContactMech contactMechId="Fedex_Contact_Ivan" contactMechTypeEnumId="CmtPostalAddress"/>
+    <mantle.shipment.carrier.ShippingGatewayOption shippingGatewayConfigId="FEDEX_INTEGRATION" optionEnumId="FedexApiToken" optionValue="Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzY29wZSI6WyJDWFMiLCJTRUNVUkUiXSwiUGF5bG9hZCI6ImFLcEpEZEJ1MXN4WmY3bEpFOUxxd2g3OEFCZ3FCSzcxa2hvdkRnWHpWWUk0a3R4ZFMzVk00U3FyRVVFN29RcjZJN25GSm9VQk5aTUJvZ09WTEpQM3BtNVRpamp6NEFNLzBRR0lQWkxLMW5kSnpXSVAwQlF4UlFsN0FCMjJOdUNwZHVnNTNuV0d0RzVFQTltR3lET2NCcityeSswMkpUd0c4R3RDS1BYa05uQ1JLS3VCQzBpMnAvbnVyS3hlS21RZ2F5S1BwajI5WUgxRW9nbU1DMVVxUGpVeHY5Y0hzMEIzdnV3cUlRbXFiSlBSVVAyaWljS1JyY3RYTHczOWZqdFZXTHVud1FHZ0xtYk5YMWVyb21oSVEvaHJRQzZMWTJwTHd0bGFaRkdRVzNFPSIsImV4cCI6MTYzNzc0MjkwMiwianRpIjoiZjJjNWMwZWMtOGM1YS00MTlkLWExYzMtZGY5YjVkZjVmNWFhIiwiY2xpZW50X2lkIjoibDdlYThjODA1Y2JjNzQ0YWMyYWJhMzIyZmJjMjE1MGQ4MSJ9.E_AtcKIT7Nqil94xax1H-ra0WVztqmowIns8eWL_xES3coYGqMiDlUD6g13D63uC4rBiXgfz8kjoDcpp8FJOakg8zY8cfsYBzQQfKQcUlY03J3GK7ncxmFB17nYaYVk1K80BwujxrdWQLMdGYxXd6svDE8irnkKJjNW_Oh5Fe7d5X-dZuoqzlPdLegnoXnX0mDMGYVcnBK7PgsMPusmCDQPslj5aSPQ7_iGNl5ns39IUe2l3eIStcdE3_LNwMEo4K57btLYSUZB-_QurnQo4b4pF-Sq6QJ-XO1AxrcvmSdmcuWjtjryAnHjPkFFYkDzO3psVWMyP1ZuOB0qj9HJd-sbtG0luwdZYfby7shhItMIB_LtvvBve0Y6XI1nWUyUq9Q4Q_wRZvoygQyT7WOBQgBWXKVx-ZSW-GfA1bParAValnKt6nuxNjDAtklmnGR0VeCGhHrvCIH6TU15e7bE25beOhP242mlVP4IfJyoE7HhEhek9sHunLtL4QXYLxYJUZywHMkJnAcv8-kd6UjQ3gp6W1Qz7oi3l0FGcCgKsWfhpY-Z5Djio_vCw3PVT9zeCi3vdui3NLgSvYsViMiIz9DvuEIh7oneFRn7XGTe8o-4OG5UofBPTaxcRO75BCSAx8b8xrtSmu0qUYwweZapg28I37qTrbClYNpqFj68uIsQ"/>
     <!--If trustLevelEnumId is true when address is valid-->
-<!--    <mantle.party.contact.PartyContactMechInfo partyId="Fedex Party" contactMechId="PtyPerson" contactMechPurposeId="FedexPartyPurpose"
-                                               fromDate="2010-02-03 02:00" trustLeveLEnumId="false"/>-->
-    <moqui.basic.Geo geoId="CAN_ON" geoTypeEnumId="GEOT_STATE" geoName="Ontario" geoCodeAlpha2="ON"/>
     <!--ShipGatewayAddressId is defauld to null,it will change to updated contactMechId if valid address found-->
     <mantle.party.contact.PostalAddress contactMechId="Fedex_Contact_Ivan" address1="Toronto City Hall 100 Queen St W" city="Toranto"
                                         stateProvinceGeoId="CAN_ON" countryGeoId="CAN" postalCode="M5H2N1"/>
-
 </entity-facade-xml>
