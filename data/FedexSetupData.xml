@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<entity-facade-xml type="seed">
-
+<entity-facade-xml type="seed-initial">
+    <!--Test Credentials For Generation Authentication Token-->
+    <moqui.basic.Enumeration description="Fedex REST API" enumId="FedexGateway" enumTypeId="ShippingGatewayType"/>
+    <moqui.basic.Enumeration description="API Token" enumId="FedexApiToken"/>
 </entity-facade-xml>
