@@ -3,8 +3,6 @@
 
     <!--Validate Postal Address-->
     <service verb="validate" noun="PostalAddress">
-        <description>Credentials are stored in Demo Data.Demo: ContactMechId="Fedex_Contact_Ivan",ShippingGatewayConfigId="Fedex Integration"
-        </description>
 
         <in-parameters>
             <parameter name="contactMechId" required="true"/>
@@ -22,7 +20,9 @@
                 <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
                 <field-map field-name="optionEnumId" value="FedexApiToken"/>
             </entity-find-one>
-            <if condition="!apiTokenOpt.optionValue"><log level="warn" message="Shipping gateway ${shippingGatewayConfigId} has no FedexApiToken, not validating address"/><return/></if>
+            <if condition="!apiTokenOpt.optionValue">
+                <return type="warning" message="Shipping gateway ${shippingGatewayConfigId} has no FedexApiToken, not validating address"/>
+            </if>
 
             <!--Converting Address Data to JSON Request Map-->
             <service-call name="mantle.fedex.FedexServices.get#AddressMap" in-map='[contactMechId:contactMechId, partyId:partyId]'
@@ -36,7 +36,7 @@
                           out-map="responseMap"/>
             <log message="In validate#PostalAddress service, returned ${responseMap.responseMap}"/>
             <if condition="responseMap.responseMap==null|| responseMap.responseMap==''">
-                <log level="warn" message="In validate#PostalAddress service, response map is empty"/>
+                <return type="warning" message="In validate#PostalAddress service, response map is empty."/>
             </if>
             <set field="responseMap" from="responseMap.responseMap"/>
             <!--Extracting data from ResponseMap-->
@@ -80,8 +80,8 @@
 
             <!--A Section of input parameters of update#PartyPostalAddress Service-->
             <set field="paInMap" from="[contactMechId:contactMechId,address1:resolvedAddresses.streetLinesToken[0],
-                        city:resolvedAddresses.city, stateProvinceGeoId:geoStateData.toGeoId,
-                        postalCode:resolvedAddresses.postalCode]"/>
+                         city:resolvedAddresses.city,stateProvinceGeoId:geoStateData.toGeoId,
+                         postalCode:resolvedAddresses.postalCode]"/>
 
             <if condition="partyId">
                 <entity-find entity-name="mantle.party.contact.PartyContactMech" list="origPcmList">
@@ -89,7 +89,7 @@
                 </entity-find>
                 <service-call name="mantle.party.ContactServices.update#PartyPostalAddress" out-map="paOut"
                               in-map="paInMap + [partyId:partyId, expireCurrent:false, contactMechPurposeId:'PostalShippingDest']"/>
-                <log message="ContactMechId updated from ${contactMechId} to ${paOut.contactMechId}"/>
+                <log message="In valid#PostalAddress service, contactMechId updated from ${contactMechId} to ${paOut.contactMechId}"/>
                 <set field="contactMechId" from="paOut.contactMechId"/>
                 <entity-find-one entity-name="mantle.party.contact.PostalAddress" value-field="postalAddress"/>
             </if>
