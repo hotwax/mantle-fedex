@@ -2,6 +2,7 @@
 
 <entity-facade-xml type="seed-initial">
     <!--Test Credentials For Generation Authentication Token-->
-    <moqui.basic.Enumeration description="Fedex REST API" enumId="FedexGateway" enumTypeId="ShippingGatewayType"/>
-    <moqui.basic.Enumeration description="API Token" enumId="FedexApiToken"/>
+    <moqui.basic.Enumeration description="Shipping Gateway Fedex" enumId="ShGtwyFedex" enumTypeId="ShippingGatewayType"/>
+    <moqui.basic.Enumeration description="Shippo Gateway Options" enumId="EgFedexOption" enumTypeId="EnumGroup"/>
+    <moqui.basic.EnumGroupMember enumId="FedexApiToken" enumGroupEnumId="EgFedexOption" sequenceNum="1"/>
 </entity-facade-xml>
