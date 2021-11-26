@@ -18,7 +18,9 @@
                 <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
                 <field-map field-name="optionEnumId" value="FedexApiToken"/>
             </entity-find-one>
-            <if condition="apiTokenOpt.optionValue"><log level="warn" message="Shipping gateway ${shippingGatewayConfigId} has no FedexApiToken, not getting rates"/><return/></if>
+            <if condition="!apiTokenOpt.optionValue">
+                <return type="warning"  message="Shipping gateway ${shippingGatewayConfigId} has no FedexApiToken, not getting rates"/>
+            </if>
 
             <!--Setting Connection With Fedex-->
             <service-call name="mantle.fedex.FedexServices.set#Connection"
