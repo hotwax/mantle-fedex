@@ -264,4 +264,7 @@
             <set field="responseMap" from="responseMap.responseMap"/>
         </actions>
     </service>
+    <!--Request Shipping Label Service-->
+    <service verb="request" noun="ShippingLabels">
+     </service>
 </services>
