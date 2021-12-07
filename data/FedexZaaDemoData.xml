@@ -6,65 +6,65 @@
     <mantle.party.Party partyId="FedexPartyOrigin" partyTypeEnumId="PtyPerson"/>
     <mantle.party.contact.ContactMech contactMechId="Fedex_Origin_PA" contactMechTypeEnumId="CmtPostalAddress"/>
     <mantle.party.contact.PartyContactMech partyId="FedexPartyOrigin" contactMechId="Fedex_Origin_PA"
-                                           contactMechPurposeId="PostalShippingOrigin" fromDate="2010-02-03 02:00"/>
+        contactMechPurposeId="PostalShippingOrigin" fromDate="2010-02-03 02:00"/>
     <mantle.party.contact.ContactMechPurpose contactMechPurposeId="PostalShippingOrigin" contactMechTypeEnumId="CmtPostalAddress"
-                                             description="Postal - Shipping Origin"/>
+        description="Postal - Shipping Origin"/>
     <mantle.party.contact.PostalAddress contactMechId="Fedex_Origin_PA" address1="SHIPPER STREET LINE 1" city="HARRISON"
-                                        stateProvinceGeoId="USA_AR" countryGeoId="USA" postalCode="72601"/>
+        stateProvinceGeoId="USA_AR" countryGeoId="USA" postalCode="72601"/>
 
     <!-- Destination ContactMech Details -->
     <mantle.party.Party partyId="FedexPartyDest" partyTypeEnumId="PtyPerson"/>
     <mantle.party.contact.ContactMech contactMechId="Fedex_Dest_PA" contactMechTypeEnumId="CmtPostalAddress"/>
     <mantle.party.contact.PartyContactMech partyId="FedexPartyDest" contactMechId="Fedex_Dest_PA" contactMechPurposeId="PostalShippingDest"
-                                           fromDate="2010-02-03 02:00"/>
+        fromDate="2010-02-03 02:00"/>
     <mantle.party.contact.ContactMechPurpose contactMechPurposeId="PostalShippingDest" contactMechTypeEnumId="CmtPostalAddress"
-                                             description="Postal - Shipping Destination"/>
+        description="Postal - Shipping Destination"/>
     <mantle.party.contact.PostalAddress contactMechId="Fedex_Dest_PA" address1="RECIPIENT STREET LINE 1"
-                                        address2="RECIPIENT STREET LINE 2" city="Collierville" stateProvinceGeoId="USA_TN" countryGeoId="USA"
-                                        postalCode="38017"/>
+        address2="RECIPIENT STREET LINE 2" city="Collierville" stateProvinceGeoId="USA_TN" countryGeoId="USA"
+        postalCode="38017"/>
 
     <!-- Facility ContactMech Details -->
     <mantle.facility.Facility facilityId="Fedex_Facility" facilityTypeEnumId="FcTpWarehouse" ownerPartyId="FedEx"/>
     <mantle.party.contact.ContactMech contactMechId="Fedex_Facility_PA" contactMechTypeEnumId="CmtPostalAddress"/>
     <mantle.party.contact.ContactMechPurpose contactMechPurposeId="PostalShippingWarehouse" contactMechTypeEnumId="CmtPostalAddress"
-                                             description="Postal - Shipping Warehouse"/>
+         description="Postal - Shipping Warehouse"/>
     <mantle.facility.FacilityContactMech facilityId="Fedex_Facility" contactMechId="Fedex_Facility_PA"
-                                         contactMechPurposeId="PostalShippingWarehouse"/>
+        contactMechPurposeId="PostalShippingWarehouse"/>
     <mantle.party.contact.PostalAddress contactMechId="Fedex_Facility_PA" address1="Toronto City Hall 100 Queen St W" city="Toranto"
-                                        stateProvinceGeoId="CAN_ON" countryGeoId="CAN" postalCode="M5H2N1"/>
+        stateProvinceGeoId="CAN_ON" countryGeoId="CAN" postalCode="M5H2N1"/>
 
-    <!-- ShipmentGateway Details  -->
+   <!-- ShipmentGateway Details  -->
     <mantle.shipment.carrier.ShippingGatewayConfig shippingGatewayConfigId="FEDEX_INTEGRATION"
-                                                   shippingGatewayTypeEnumId="ShGtwyFedex" description="Fedex API Integration"
-                                                   getOrderRateServiceName="mantle.fedex.FedexServices.get#OrderShippingRate"
-                                                   validateAddressServiceName="mantle.fedex.FedexServices.validate#PostalAddress"
-                                                   requestLabelsServiceName="mantle.fedex.FedexServices.request#ShippingLabels"/>
+        shippingGatewayTypeEnumId="ShGtwyFedex" description="Fedex API Integration"
+        getOrderRateServiceName="mantle.fedex.FedexServices.get#OrderShippingRate"
+        validateAddressServiceName="mantle.fedex.FedexServices.validate#PostalAddress"
+        requestLabelsServiceName="mantle.fedex.FedexServices.request#ShippingLabels"/>
     <mantle.shipment.carrier.ShippingGatewayOption shippingGatewayConfigId="FEDEX_INTEGRATION" optionEnumId="FedexLabelFormatType"
-                                                   optionValue="COMMON2D"/>
+        optionValue="COMMON2D"/>
     <mantle.shipment.carrier.ShippingGatewayOption shippingGatewayConfigId="FEDEX_INTEGRATION" optionEnumId="FedexLabelImageType"
-                                                   optionValue="PDF"/>
+        optionValue="PDF"/>
     <mantle.shipment.carrier.ShippingGatewayOption shippingGatewayConfigId="FEDEX_INTEGRATION" optionEnumId="FedexLabelStockType"
-                                                   optionValue="PAPER_85X11_TOP_HALF_LABEL"/>
+        optionValue="PAPER_85X11_TOP_HALF_LABEL"/>
 
     <!-- Shipment-->
     <mantle.shipment.Shipment shipmentId="Fedex_Shipment" shipmentTypeEnumId="ShpTpPurchase" statusId="ShipInput"
-                              fromPartyId="FedexPartyOrigin" toPartyId="FedexPartyDest" costUomId="INR"/>
+        fromPartyId="FedexPartyOrigin" toPartyId="FedexPartyDest" costUomId="INR"/>
     <mantle.shipment.ShipmentRouteSegment shipmentId="Fedex_Shipment" shipmentRouteSegmentSeqId="01"
-                                          shippingGatewayConfigId="FEDEX_INTEGRATION" originPostalContactMechId="Fedex_Origin_PA"
-                                          destPostalContactMechId="Fedex_Dest_PA" carrierPartyId="FedEx" shipmentMethodEnumId="ShMthSecondDay"
-                                          statusId="ShrssNotStarted"/>
+        shippingGatewayConfigId="FEDEX_INTEGRATION" originPostalContactMechId="Fedex_Origin_PA"
+        destPostalContactMechId="Fedex_Dest_PA" carrierPartyId="FedEx" shipmentMethodEnumId="ShMthSecondDay"
+        statusId="ShrssNotStarted"/>
     <mantle.shipment.ShipmentContactMech shipmentId="Fedex_Shipment" contactMechPurposeId="PostalShippingDest"
-                                         contactMechId="Fedex_Dest_PA"/>st
+        contactMechId="Fedex_Dest_PA"/>st
 
     <!-- Box Details -->
     <mantle.shipment.ShipmentBoxType shipmentBoxTypeId="FedEx_Box_10kg" description="FedEx® 10kg Box"
-                                     dimensionUomId="LEN_in" boxLength="15.81" boxWidth="12.94" boxHeight="10.19" gatewayBoxId="FedEx_Box_10kg"/>
+        dimensionUomId="LEN_in" boxLength="15.81" boxWidth="12.94" boxHeight="10.19" gatewayBoxId="FedEx_Box_10kg"/>
     <mantle.shipment.ShipmentBoxType shipmentBoxTypeId="FedEx_Box_25kg" description="FedEx® 25kg Box"
-                                     dimensionUomId="LEN_in" boxLength="54.80" boxWidth="42.10" boxHeight="33.50" gatewayBoxId="FedEx_Box_25kg"/>
+        dimensionUomId="LEN_in" boxLength="54.80" boxWidth="42.10" boxHeight="33.50" gatewayBoxId="FedEx_Box_25kg"/>
     <mantle.shipment.carrier.ShippingGatewayBoxType shippingGatewayConfigId="FEDEX_INTEGRATION" shipmentBoxTypeId="FedEx_Box_10kg"
-                                                    gatewayBoxId="FedEx_Box_10kg"/>
+        gatewayBoxId="FedEx_Box_10kg"/>
     <mantle.shipment.ShipmentPackage shipmentId="Fedex_Shipment" shipmentBoxTypeId="FedEx_Box_10kg" shipmentPackageSeqId="01"
-                                     weight="100" weightUomId="WT_kg"/>
+        weight="100" weightUomId="WT_kg"/>
 
     <!-- Product Details -->
     <mantle.product.Product productId="Fedex_Product" amountUomId="INR" amountFixed="200"/>

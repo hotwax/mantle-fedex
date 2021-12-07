@@ -15,7 +15,6 @@
             <parameter name="responseMap"/>
         </out-parameters>
         <actions>
-            <log message="${method} ${connectUrl} ${contentType} ${requestMap} ${requestPath} ${apiTokenValue}"/>
             <script>
                 import org.moqui.util.RestClient;
                 import groovy.json.JsonSlurper;
