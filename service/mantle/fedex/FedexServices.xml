@@ -1,35 +1,34 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <services xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/service-definition-2.1.xsd">
 
-        <!--RateAndTrasitTime Service-->
-        <service verb="get" noun="OrderShippingRate">
-            <description>Remove accountNumber tag, it will be automatically added.</description>
-            <in-parameters>
-                <parameter name="shippingGatewayConfigId" required="true"/>
-                <parameter name="requestMap" required="true"/>
-            </in-parameters>
-            <out-parameters>
-                <parameter name="responseMap" required="true"/>
-            </out-parameters>
-            <actions>
+    <service verb="get" noun="OrderShippingRate">
+        <description>Remove accountNumber tag, it will be automatically added.</description>
+        <in-parameters>
+            <parameter name="shippingGatewayConfigId" required="true"/>
+            <parameter name="requestMap" required="true"/>
+        </in-parameters>
+        <out-parameters>
+            <parameter name="responseMap" required="true"/>
+        </out-parameters>
+        <actions>
 
             <!--Searching FedexApiToken-->
             <entity-find-one entity-name="ShippingGatewayOption" value-field="apiTokenOpt">
-                <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
-                <field-map field-name="optionEnumId" value="FedexApiToken"/>
+                    <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
+                    <field-map field-name="optionEnumId" value="FedexApiToken"/>
             </entity-find-one>
             <if condition="!apiTokenOpt.optionValue">
                 <return type="warning"  message="Shipping gateway ${shippingGatewayConfigId} has no FedexApiToken, not getting rates"/>
             </if>
 
-            <!--Setting Connection With Fedex-->
+            <!-- Setting Connection With Fedex -->
             <service-call name="mantle.fedex.FedexServices.set#Connection"
-                          in-map="[method:'POST',connectUrl:'https://apis-sandbox.fedex.com/rate/v1/rates/quotes',
-                                   contentType:'application/json',requestMap:requestMap,
-                                   apiTokenValue:apiTokenOpt.optionValue,xLocale:'en-US']"
-                          out-map="responseMap"/>
-            <log message="In get#OrderShippingRate, returned ${responseMap.responseMap}=============="/>
-            <set field="responseMap" from="responseMap.responseMap"/>
+                    in-map="[method:'POST', connectUrl:'https://apis-sandbox.fedex.com/rate/v1/rates/quotes',
+                               contentType:'application/json', requestMap:requestMap,
+                               apiTokenValue:apiTokenOpt.optionValue, xLocale:'en-US']"
+                    out-map="response"/>
+
+            <set field="responseMap" from="response.responseMap"/>
         </actions>
     </service>
 </services>
