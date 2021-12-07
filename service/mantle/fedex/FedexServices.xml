@@ -2,30 +2,134 @@
 <services xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
           xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/service-definition-2.1.xsd">
 
-    <!--Request Shipping Label Service-->
     <service verb="request" noun="ShippingLabels">
         <in-parameters>
-            <parameter name="requestMap"/>
-            <parameter name="shippingGatewayConfigId"/>
+            <parameter name="shipmentId" required="true"/>
+            <parameter name="shipmentRouteSegmentSeqId" required="true"/>
+            <parameter name="shippingGatewayConfigId" required="true"/>
         </in-parameters>
         <out-parameters>
             <parameter name="responseMap"/>
         </out-parameters>
         <actions>
-            <!--Searching FedexApiToken-->
+
+            <!-- Searching FedexApiToken -->
             <entity-find-one entity-name="ShippingGatewayOption" value-field="apiTokenOpt">
                 <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
                 <field-map field-name="optionEnumId" value="FedexApiToken"/>
             </entity-find-one>
             <if condition="!apiTokenOpt.optionValue">
-                <return type="warning"  message="Shipping gateway ${shippingGatewayConfigId} has no FedexApiToken, not getting rates"/>
+                <return type="warning"  message=" ${shippingGatewayConfigId} has no FedexApiToken, not getting rates"/>
             </if>
-            <!--Setting Connection With Fedex-->
+
+            <!-- Converting Label Data to JSON Request Map -->
+            <service-call name="mantle.fedex.FedexServices.get#LabelRequestMap"
+                          in-map='[shipmentId: shipmentId, shipmentRouteSegmentSeqId:shipmentRouteSegmentSeqId,
+                             shippingGatewayConfigId:shippingGatewayConfigId]'
+                          out-map='request'/>
+            <if condition="!request.labelRequestMap"><return/></if>
+
+            <!-- Setting Connection With Fedex -->
             <service-call name="mantle.fedex.FedexServices.set#Connection"
                           in-map="[method:'POST',connectUrl:'https://apis-sandbox.fedex.com/ship/v1/shipments',
-                                   contentType:'application/json',requestMap:requestMap,apiTokenValue:apiTokenOpt.optionValue,xLocale:'en-US']"
-                          out-map="responseMap"/>
-            <set field="responseMap" from="responseMap.responseMap"/>
+                             contentType:'application/json', requestMap:request.labelRequestMap,
+                             apiTokenValue:apiTokenOpt.optionValue,xLocale:'en-US']"
+                          out-map="response"/>
+            <set field="responseMap" from="response.responseMap"/>
+
+        </actions>
+    </service>
+    <service verb="get" noun="LabelRequestMap">
+        <in-parameters>
+            <parameter name="shipmentId" required="true"/>
+            <parameter name="shipmentRouteSegmentSeqId" required="true"/>
+            <parameter name="shippingGatewayConfigId" required="true"/>
+        </in-parameters>
+        <out-parameters>
+            <parameter name="labelRequestMap" type="Map"/>
+        </out-parameters>
+        <actions>
+
+            <!-- Searching ShipmentRouteSegment -->
+            <entity-find-one entity-name="ShipmentRouteSegment" value-field="shipmentRouteSegment">
+                <field-map field-name="shipmentRouteSegmentSeqId"/>
+                <field-map field-name="shipmentId"/>
+            </entity-find-one>
+            <if condition="!shipmentRouteSegment">
+                <return type="danger" message="In get#labelRequestMap service, shipmentRouteSegment not available."/>
+            </if>
+
+            <!--Searching Origin and Dest PostalAddress-->
+            <entity-find-one entity-name="PostalAddress" value-field="originPostalAddress">
+                <field-map field-name="contactMechId" from="shipmentRouteSegment.originPostalContactMechId"></field-map>
+            </entity-find-one>
+            <entity-find-one entity-name="PostalAddress" value-field="destPostalAddress">
+                <field-map field-name="contactMechId" from="shipmentRouteSegment.destPostalContactMechId"></field-map>
+            </entity-find-one>
+
+            <!-- Searching Country and State/Province Code -->
+            <entity-find-one entity-name="Geo" value-field="originGeoStateData">
+                <field-map field-name="geoId" from="originPostalAddress.stateProvinceGeoId"/>
+                <select-field field-name="geoCodeAlpha2"/>
+            </entity-find-one>
+            <entity-find-one entity-name="Geo" value-field="originGeoCountryData">
+                <field-map field-name="geoId" from="originPostalAddress.countryGeoId"/>
+                <select-field field-name="geoCodeAlpha2"/>
+            </entity-find-one>
+            <entity-find-one entity-name="Geo" value-field="destGeoStateData">
+                <field-map field-name="geoId" from="destPostalAddress.stateProvinceGeoId"/>
+                <select-field field-name="geoCodeAlpha2"/>
+            </entity-find-one>
+            <entity-find-one entity-name="Geo" value-field="destGeoCountryData">
+                <field-map field-name="geoId" from="destPostalAddress.countryGeoId"/>
+                <select-field field-name="geoCodeAlpha2"/>
+            </entity-find-one>
+
+            <!--Extracting Info For Labels -->
+            <entity-find-one entity-name="ShippingGatewayOption" value-field="labelFormat">
+                <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
+                <field-map field-name="optionEnumId" value="FedexLabelFormatType"/>
+            </entity-find-one>
+            <entity-find-one entity-name="ShippingGatewayOption" value-field="labelImage">
+                <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
+                <field-map field-name="optionEnumId" value="FedexLabelImageType"/>
+            </entity-find-one>
+            <entity-find-one entity-name="ShippingGatewayOption" value-field="labelStock">
+                <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
+                <field-map field-name="optionEnumId" value="FedexLabelStockType"/>
+            </entity-find-one>
+
+            <!-- Address details for requestMap -->
+            <set field="saddress" from="[streetLines:[originPostalAddress.address1], city:originPostalAddress.city,
+                 stateOrProvinceCode:originGeoStateData.geoCodeAlpha2, postalCode:originPostalAddress.postalCode,
+                 countryCode:originGeoCountryData.geoCodeAlpha2]" type="NewMap"/>
+            <set field="scontact" from="[personName:'SHIPPER NAME', phoneNumber:'1234566790',
+                 companyName:'Shipper Company Name']" type="NewMap"/>
+            <set field="raddress" from="[streetLines:[destPostalAddress.address1, destPostalAddress.address2],
+                 city:destPostalAddress.city, stateOrProvinceCode:destGeoStateData.geoCodeAlpha2,
+                 postalCode:destPostalAddress.postalCode, countryCode:destGeoCountryData.geoCodeAlpha2]" type="NewMap"/>
+            <set field="rcontact" from="[personName:'RECIPIENT NAME', phoneNumber:'1234567890',
+                 companyName:'Recipient Company Name']" type="NewMap"/>
+
+            <!-- Collecting details for labelRequestMap -->
+            <set field='shipper' from="[contact:scontact,address:saddress]" type="NewMap"/>
+            <set field='recipients' from="[contact:rcontact,address:raddress]" type="NewMap"/>
+            <set field="shippingChargesPayment" from="[paymentType:'SENDER']" type="NewMap"/>
+            <set field="shipmentSpecialServices" from="[specialServiceTypes:['FEDEX_ONE_RATE']]" type="NewMap"/>
+            <set field="labelSpecification" from="[imageType:labelImage.optionValue,
+                 labelStockType:labelStock.optionValue, labelFormatType:labelFormat.optionValue]" type="NewMap"/>
+            <set field="requestedPackageLineItems" from="[:]"/>
+            <set field="requestedShipment" from= "[shipper:shipper, recipients:[recipients], shipDatestamp:'2021-12-10',
+                 serviceType:'STANDARD_OVERNIGHT', packagingType:'FEDEX_SMALL_BOX', pickupType:'USE_SCHEDULED_PICKUP',
+                 blockInsightVisibility:false, shippingChargesPayment:shippingChargesPayment,
+                 shipmentSpecialServices:shipmentSpecialServices, labelSpecification:labelSpecification,
+                 requestedPackageLineItems:[requestedPackageLineItems]]" type="NewMap"/>
+            <set field="accountNumber" from="[value:'740561073']" type="NewMap"/>
+
+            <!-- Creating labelRequestMap -->
+            <set field="labelRequestMap" from="[labelResponseOptions:'URL_ONLY', requestedShipment:requestedShipment,
+                 accountNumber:accountNumber]" type="NewMap"/>
+
         </actions>
     </service>
 </services>
