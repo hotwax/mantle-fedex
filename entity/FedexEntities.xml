@@ -8,6 +8,7 @@
         <field name="grantType" type="text-long" default="client_credentials"/>
         <field name="clientId" type="text-long" encrypt="true"><description>Fedex clientId (API Key)</description></field>
         <field name="clientSecret" type="text-long" encrypt="true"><description>Fedex clientSecret (Secret Key)</description></field>
-        <field name="accountNumber" type="text-short" encrypt="true"><description>Fedex accountNumber (Shipment Account Number)</description></field>
+        <field name="accountNumber" type="text-short" encrypt="true"><description>Fedex accountNumber (Shipment Account Number)
+        </description></field>
     </entity>
 </entities>

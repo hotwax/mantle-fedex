@@ -1,96 +1,51 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <services xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/service-definition-2.1.xsd">
 
-    <!--Default Authentication Service for Main services -->
-        <!--Takes Connection Details and returns requestMap-->
-        <service verb="set" noun="Connection">
-            <in-parameters>
-                <parameter name="method"/>
-                <parameter name="connectUrl"/>
-                <parameter name="contentType"/>
-                <parameter name="requestMap" type="Map"/>
-                <parameter name="requestPath"/>
-                <parameter name="apiTokenValue"/>
-            </in-parameters>
-            <out-parameters>
-                <parameter name="responseMap"/>
-            </out-parameters>
-            <actions>
-                <script><![CDATA[
-                      import org.moqui.util.RestClient;
-                      import groovy.json.JsonSlurper;
-                         def connectUrl=connectUrl;
-                         if(!connectUrl.endsWith("/")) {
-                            connectUrl+="/";
-                         }
-                         RestClient restClient = ec.service.rest()
-                         restClient.method(method)
-                         restClient.uri(connectUrl)
-                         restClient.contentType(contentType)
-                         if(requestPath!=null && requestPath!="")
-                         {
-                            restClient.text(requestPath)
-                         }
-                         if(apiTokenValue!=null)
-                         {
-                              restClient.addHeader("Authorization", "${apiTokenValue}")
-                         }
-                         if(requestMap!=null)
-                         {
-                             restClient.jsonObject(requestMap)
-                         }
-                         RestClient.RestResponse restResponse = restClient.call()
-                         if (restResponse.statusCode < 200 || restResponse.statusCode > 300) {
-                            String errMsg = restResponse.text()
-                                ec.logger.error("Fedex error response (${restResponse.statusCode}): ${errMsg}")
-                                ec.message.addMessage("Fedex API error")
-                                ec.message.addMessage(errMsg)
-                                return
-                         }
-                        responseMap = restResponse.jsonObject()
-                     ]]>
-                </script>
-            <log message="In set#Connection service, returned: ${responseMap}"/>
-            </actions>
-        </service>
-    <!--Default Authentication Service for Main services -->
-        <!--Set/Generate new Fedex API Token-->
-        <service verb="store" noun="ShipmentGatewayFedex">
-            <description>
-                Test Credentials Are Predefined so this service is outdated.
-            </description>
-                <in-parameters>
-                <!--Adds grantType,clientId, clientSecret and accountNumber-->
-                <auto-parameters entity-name="ShipmentGatewayFedex" include="nonpk">
-                        <exclude field-name="lastUpdatedStamp"/>
-                </auto-parameters>
-                </in-parameters>
-                <out-parameters>
-                    <parameter name="shippingGatewayConfigId"/>
-                </out-parameters>
-                <actions>
-                    <entity-find-one entity-name="ShipmentGatewayFedex" value-field="fedexToken">
-                        <field-map field-name="shippingGatewayConfigId" value="1"/>
-                    </entity-find-one>
-                    <set field="shippingGatewayConfigId" value="1"/>
-                    <!--Create new token/Update current token-->
-                    <if condition="fedexToken==null">
-                        <entity-make-value entity-name="ShipmentGatewayFedex" value-field="fedexToken"/>
-                        <set field="shippingGatewayConfigId" value="1"/>
-                        <set field="fedexToken.shippingGatewayConfigId"/>
-                        <set field="fedexToken.grantType"/>
-                        <set field="fedexToken.clientId"/>
-                        <set field="fedexToken.clientSecret"/>
-                        <set field="fedexToken.accountNumber"/>
-                        <entity-create value-field="fedexToken"/>
-                    </if>
-                    <else>
-                        <set field="fedexToken.grantType"/>
-                        <set field="fedexToken.clientId"/>
-                        <set field="fedexToken.clientSecret"/>
-                        <set field="fedexToken.accountNumber"/>
-                        <entity-update value-field="fedexToken"/>
-                    </else>
-                </actions>
-        </service>
+    <!-- Generic Service Request -->
+    <service verb="set" noun="Connection">
+        <in-parameters>
+            <parameter name="method"/>
+            <parameter name="connectUrl"/>
+            <parameter name="contentType"/>
+            <parameter name="requestMap" type="Map"/>
+            <parameter name="requestPath"/>
+            <parameter name="apiTokenValue"/>
+        </in-parameters>
+        <out-parameters>
+            <parameter name="responseMap"/>
+        </out-parameters>
+        <actions>
+            <log message="${method} ${connectUrl} ${contentType} ${requestMap} ${requestPath} ${apiTokenValue}"/>
+            <script>
+                import org.moqui.util.RestClient;
+                import groovy.json.JsonSlurper;
+                def connectUrl=connectUrl;
+                if(!connectUrl.endsWith("/")){
+                connectUrl+="/";
+                }
+                RestClient restClient = ec.service.rest()
+                restClient.method(method)
+                restClient.uri(connectUrl)
+                restClient.contentType(contentType)
+                if(requestPath!=null &amp;&amp; requestPath!=""){
+                restClient.text(requestPath)
+                }
+                if(apiTokenValue!=null){
+                restClient.addHeader("Authorization", "${apiTokenValue}")
+                }
+                if(requestMap!=null){
+                restClient.jsonObject(requestMap)
+                }
+                RestClient.RestResponse restResponse = restClient.call()
+                if (restResponse.statusCode &lt; 200 || restResponse.statusCode &gt; 300){
+                String errMsg = restResponse.text()
+                ec.logger.error("Fedex error response (${restResponse.statusCode}): ${errMsg}")
+                ec.message.addMessage("Fedex API error")
+                ec.message.addMessage(errMsg)
+                return
+                }
+                responseMap = restResponse.jsonObject()
+            </script>
+        </actions>
+    </service>
 </services>
