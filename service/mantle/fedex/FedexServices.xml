@@ -15,8 +15,8 @@
 
             <!-- Searching FedexApiToken -->
             <entity-find-one entity-name="ShippingGatewayOption" value-field="apiTokenOpt">
-                <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
-                <field-map field-name="optionEnumId" value="FedexApiToken"/>
+                    <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
+                    <field-map field-name="optionEnumId" value="FedexApiToken"/>
             </entity-find-one>
             <if condition="!apiTokenOpt.optionValue">
                 <return type="warning"  message=" ${shippingGatewayConfigId} has no FedexApiToken, not getting rates"/>
@@ -24,17 +24,17 @@
 
             <!-- Converting Label Data to JSON Request Map -->
             <service-call name="mantle.fedex.FedexServices.get#LabelRequestMap"
-                          in-map='[shipmentId: shipmentId, shipmentRouteSegmentSeqId:shipmentRouteSegmentSeqId,
-                             shippingGatewayConfigId:shippingGatewayConfigId]'
-                          out-map='request'/>
+                    in-map='[shipmentId: shipmentId, shipmentRouteSegmentSeqId:shipmentRouteSegmentSeqId,
+                    shippingGatewayConfigId:shippingGatewayConfigId]'
+                    out-map='request'/>
             <if condition="!request.labelRequestMap"><return/></if>
 
             <!-- Setting Connection With Fedex -->
             <service-call name="mantle.fedex.FedexServices.set#Connection"
-                          in-map="[method:'POST',connectUrl:'https://apis-sandbox.fedex.com/ship/v1/shipments',
-                             contentType:'application/json', requestMap:request.labelRequestMap,
-                             apiTokenValue:apiTokenOpt.optionValue,xLocale:'en-US']"
-                          out-map="response"/>
+                    in-map="[shippingGatewayConfigId:shippingGatewayConfigId, method:'POST',path:'ship/v1/shipments',
+                    contentType:'application/json', requestMap:request.labelRequestMap,
+                    apiTokenValue:apiTokenOpt.optionValue,xLocale:'en-US']"
+                    out-map="response"/>
             <set field="responseMap" from="response.responseMap"/>
 
         </actions>
