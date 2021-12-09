@@ -172,5 +172,4 @@
             <set field="orderRequestMap" from="[accountNumber:accountNumber, requestedShipment:requestedShipment]" type="NewMap"/>
         </actions>
     </service>
-
 </services>
