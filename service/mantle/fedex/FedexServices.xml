@@ -2,21 +2,12 @@
 <services xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/service-definition-2.1.xsd">
 
     <service verb="validate" noun="PostalAddress">
-        <in-parameters>
-            <parameter name="shippingGatewayConfigId" required="true"/>
-            <parameter name="contactMechId" required="true"/>
-            <parameter name="partyId"/>
-            <parameter name="facilityId"/>
-        </in-parameters>
-        <out-parameters>
-            <parameter name="contactMechId"/>
-            <parameter name="postalAddress"/>
-        </out-parameters>
+            <implements service="mantle.shipment.CarrierServices.validate#ShippingPostalAddress"/>
         <actions>
             <!-- Searching FedexApiToken -->
             <entity-find-one entity-name="ShippingGatewayOption" value-field="apiTokenOpt">
-                <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
-                <field-map field-name="optionEnumId" value="FedexApiToken"/>
+                    <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
+                    <field-map field-name="optionEnumId" value="FedexApiToken"/>
             </entity-find-one>
             <if condition="!apiTokenOpt.optionValue">
                 <return type="warning" message=" ${shippingGatewayConfigId} has no FedexApiToken, not validating address"/>
@@ -24,15 +15,14 @@
 
             <!-- Converting Address Data to JSON Request Map -->
             <service-call name="mantle.fedex.FedexServices.get#AddressMap" in-map='[contactMechId:contactMechId, partyId:partyId]'
-                          out-map='addressMap'/>
+                    out-map='addressMap'/>
             <if condition="!addressMap"><return/></if>
 
             <!-- Setting Connection With Fedex -->
             <service-call name="mantle.fedex.FedexServices.set#Connection"
-                          in-map="[method:'POST', connectUrl:'https://apis-sandbox.fedex.com/address/v1/addresses/resolve',
-                    contentType:'application/json', requestMap:addressMap.addressMap,
-                    apiTokenValue:apiTokenOpt.optionValue]"
-                          out-map="response"/>
+                    in-map="[shippingGatewayConfigId:shippingGatewayConfigId,method:'POST', path:'address/v1/addresses/resolve',
+                    contentType:'application/json', requestMap:addressMap.addressMap, apiTokenValue:apiTokenOpt.optionValue]"
+                    out-map="response"/>
             <if condition="response.responseMap==null || response.responseMap == ''">
                 <return type="warning" message="In validate#PostalAddress service, response map is empty."/>
             </if>
@@ -62,19 +52,22 @@
             </entity-find-one>
 
             <!-- A Section of input parameters of update#PartyPostalAddress Service -->
-            <set field="paInMap" from="[contactMechId:contactMechId,address1:resolvedAddress.streetLinesToken[0],
+             <set field="paInMap" from="[contactMechId:contactMechId,address1:resolvedAddress.streetLinesToken[0],
                          city:resolvedAddress.city,stateProvinceGeoId:resolvedAddress.geoStateData.toGeoId,
                          postalCode:resolvedAddress.postalCode]"/>
 
+            <if condition="!facilityId &amp;&amp; !partyId">
+                <return type="danger" message="In validate#PostalAddress service, both partyId and facilityId are not avaliable."/>
+            </if>
             <if condition="facilityId">
                 <entity-find entity-name="mantle.facility.FacilityContactMech" list="origFcmList">
-                    <econdition field-name="facilityId"/><econdition field-name="contactMechId"/>
+                        <econdition field-name="facilityId"/><econdition field-name="contactMechId"/>
                 </entity-find>
 
                 <!-- Update FacilityPostalAddress, if Facility linked with contactMech -->
                 <if condition="origFcmList">
                     <service-call name="mantle.facility.ContactServices.update#FacilityPostalAddress" out-map="paOut"
-                                  in-map="paInMap + [facilityId:facilityId, expireCurrent:true]"/>
+                            in-map="paInMap + [facilityId:facilityId, expireCurrent:true]"/>
                     <log message="FacilityContactMechId updated from ${contactMechId} to ${paOut.contactMechId}"/>
                     <set field="contactMechId" from="paOut.contactMechId"/>
                     <entity-find-one entity-name="mantle.party.contact.PostalAddress" value-field="postalAddress"/>
@@ -83,7 +76,7 @@
                     <log level="warn" message="In validate#PostalAddress service, Facility not associated with ContactMech"/>
                 </else>
             </if>
-            <else-if condition="partyId">
+            <if condition="partyId">
                 <entity-find entity-name="mantle.party.contact.PartyContactMech" list="origPcmList">
                     <econdition field-name="partyId"/><econdition field-name="contactMechId"/>
                 </entity-find>
@@ -91,7 +84,7 @@
                 <!-- Update PartyPostalAddress, if Party linked with contactMech -->
                 <if condition="origPcmList">
                     <service-call name="mantle.party.ContactServices.update#PartyPostalAddress" out-map="paOut"
-                                  in-map="paInMap + [partyId:partyId, expireCurrent:false, contactMechPurposeId:'PostalShippingDest']"/>
+                            in-map="paInMap + [partyId:partyId, expireCurrent:false, contactMechPurposeId:'PostalShippingDest']"/>
                     <log message="PartyContactMechId updated from ${contactMechId} to ${paOut.contactMechId}"/>
                     <set field="contactMechId" from="paOut.contactMechId"/>
                     <entity-find-one entity-name="mantle.party.contact.PostalAddress" value-field="postalAddress"/>
@@ -99,10 +92,7 @@
                 <else>
                     <log level="warn" message="In validate#PostalAddress service, Party not associated with ContactMech"/>
                 </else>
-            </else-if>
-            <else>
-                <return type="danger" message="In validate#PostalAddress service, both partyId and facilityId are not avaliable."/>
-            </else>
+            </if>
 
             <!-- Updating trustLevelEnumId value -->
             <entity-find-one entity-name="mantle.party.contact.ContactMech" value-field="contactMech"/>
@@ -115,16 +105,16 @@
     <!-- Returns RequestMap for validate#PostalAddress service -->
     <service verb="get" noun="AddressMap">
         <in-parameters>
-            <parameter name="contactMechId"></parameter>
-            <parameter name="partyId"></parameter>
+            <parameter name="contactMechId" required="true"/>
+            <parameter name="partyId" required="true"/>
         </in-parameters>
         <out-parameters>
             <parameter name="addressMap" type="Map"/>
         </out-parameters>
         <actions>
             <entity-find-one entity-name="mantle.party.contact.PartyContactMech" value-field="partyContactMech">
-                <field-map field-name="contactMechId" from="contactMechId"/>
-                <field-map field-name="contactMechId" from="contactMechId"/>
+                    <field-map field-name="contactMechId" from="contactMechId"/>
+                    <field-map field-name="contactMechId" from="contactMechId"/>
             </entity-find-one>
 
             <!-- Searching PostalAddress -->
