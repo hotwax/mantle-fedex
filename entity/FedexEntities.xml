@@ -9,6 +9,7 @@
         <field name="clientId" type="text-long" encrypt="true"><description>Fedex clientId (API Key)</description></field>
         <field name="clientSecret" type="text-long" encrypt="true"><description>Fedex clientSecret (Secret Key)</description></field>
         <field name="accountNumber" type="text-short" encrypt="true"><description>Fedex accountNumber (Shipment Account Number)
-        </description></field>
+            </description></field>
+        <field name="connectUrl" type="text-medium" encrypt="true"/>
     </entity>
 </entities>

@@ -9,8 +9,8 @@
         contactMechPurposeId="PostalShippingOrigin" fromDate="2010-02-03 02:00"/>
     <mantle.party.contact.ContactMechPurpose contactMechPurposeId="PostalShippingOrigin" contactMechTypeEnumId="CmtPostalAddress"
         description="Postal - Shipping Origin"/>
-    <mantle.party.contact.PostalAddress contactMechId="Fedex_Origin_PA" address1="SHIPPER STREET LINE 1" city="HARRISON"
-        stateProvinceGeoId="USA_AR" countryGeoId="USA" postalCode="72601"/>
+    <mantle.party.contact.PostalAddress contactMechId="Fedex_Origin_PA" address1="Toronto City Hall 100 Queen St W" city="Toranto"
+        stateProvinceGeoId="CAN_ON" countryGeoId="CAN" postalCode="M5H2N1"/>
 
     <!-- Destination ContactMech Details -->
     <mantle.party.Party partyId="FedexPartyDest" partyTypeEnumId="PtyPerson"/>
@@ -19,21 +19,20 @@
         fromDate="2010-02-03 02:00"/>
     <mantle.party.contact.ContactMechPurpose contactMechPurposeId="PostalShippingDest" contactMechTypeEnumId="CmtPostalAddress"
         description="Postal - Shipping Destination"/>
-    <mantle.party.contact.PostalAddress contactMechId="Fedex_Dest_PA" address1="RECIPIENT STREET LINE 1"
-        address2="RECIPIENT STREET LINE 2" city="Collierville" stateProvinceGeoId="USA_TN" countryGeoId="USA"
-        postalCode="38017"/>
+    <mantle.party.contact.PostalAddress contactMechId="Fedex_Dest_PA" address1="VIA VITTORIO VENETO 121" city="ROMA"
+        stateProvinceGeoId="ITA_RM" countryGeoId="ITA" postalCode="00187"/>
 
     <!-- Facility ContactMech Details -->
     <mantle.facility.Facility facilityId="Fedex_Facility" facilityTypeEnumId="FcTpWarehouse" ownerPartyId="FedEx"/>
     <mantle.party.contact.ContactMech contactMechId="Fedex_Facility_PA" contactMechTypeEnumId="CmtPostalAddress"/>
-    <mantle.party.contact.ContactMechPurpose contactMechPurposeId="PostalShippingWarehouse" contactMechTypeEnumId="CmtPostalAddress"
+    <mantle.party.contact.ContactMechPurpose contactMechPurposeId="PostalShippingOrigin" contactMechTypeEnumId="CmtPostalAddress"
          description="Postal - Shipping Warehouse"/>
     <mantle.facility.FacilityContactMech facilityId="Fedex_Facility" contactMechId="Fedex_Facility_PA"
-        contactMechPurposeId="PostalShippingWarehouse"/>
+        contactMechPurposeId="PostalShippingOrigin"/>
     <mantle.party.contact.PostalAddress contactMechId="Fedex_Facility_PA" address1="Toronto City Hall 100 Queen St W" city="Toranto"
         stateProvinceGeoId="CAN_ON" countryGeoId="CAN" postalCode="M5H2N1"/>
 
-   <!-- ShipmentGateway Details  -->
+   <!-- Carrier Details -->
     <mantle.shipment.carrier.ShippingGatewayConfig shippingGatewayConfigId="FEDEX_INTEGRATION"
         shippingGatewayTypeEnumId="ShGtwyFedex" description="Fedex API Integration"
         getOrderRateServiceName="mantle.fedex.FedexServices.get#OrderShippingRate"
@@ -45,8 +44,9 @@
         optionValue="PDF"/>
     <mantle.shipment.carrier.ShippingGatewayOption shippingGatewayConfigId="FEDEX_INTEGRATION" optionEnumId="FedexLabelStockType"
         optionValue="PAPER_85X11_TOP_HALF_LABEL"/>
+    <mantle.party.Party partyId="FedexCarrier" partyTypeEnumId="PtyOrganization"/>
 
-    <!-- Shipment-->
+    <!-- Shipment -->
     <mantle.shipment.Shipment shipmentId="Fedex_Shipment" shipmentTypeEnumId="ShpTpPurchase" statusId="ShipInput"
         fromPartyId="FedexPartyOrigin" toPartyId="FedexPartyDest" costUomId="INR"/>
     <mantle.shipment.ShipmentRouteSegment shipmentId="Fedex_Shipment" shipmentRouteSegmentSeqId="01"
@@ -70,6 +70,11 @@
     <mantle.product.Product productId="Fedex_Product" amountUomId="INR" amountFixed="200"/>
     <mantle.shipment.ShipmentItem shipmentId="Fedex_Shipment" productId="Fedex_Product" quantity="10"/>
     <mantle.shipment.ShipmentPackageContent shipmentId="Fedex_Shipment"  shipmentPackageSeqId="01" productId="Fedex_Product" quantity="3"/>
+
+    <!-- Order Details -->
+    <mantle.order.OrderHeader orderId="Fedex_Order" currencyUomId="INR" grandTotal="200"/>
+    <mantle.order.OrderPart orderId="Fedex_Order" orderPartSeqId="01" vendorPartyId="FedexPartyOrigin" customerPartyId="FedexPartyDest"
+        facilityId="Fedex_Facility" carrierPartyId="FedexCarrier" shipmentMethodEnumId="ShMthSecondDay" postalContactMechId="Fedex_Dest_PA"/>
 
 </entity-facade-xml>
 
