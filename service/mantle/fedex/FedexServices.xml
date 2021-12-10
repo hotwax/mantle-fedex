@@ -2,7 +2,7 @@
 <services xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/service-definition-2.1.xsd">
 
     <!-- Generic Service Request -->
-    <service verb="set" noun="Connection">
+    <service verb="send" noun="FedexRequest">
         <in-parameters>
             <parameter name="method"/>
             <parameter name="path"/>
@@ -13,7 +13,7 @@
             <parameter name="shippingGatewayConfigId"/>
         </in-parameters>
         <out-parameters>
-            <parameter name="responseMap"/>
+            <parameter name="responseMap" type="Map"/>
         </out-parameters>
         <actions>
             <entity-find-one entity-name="ShipmentGatewayFedex" value-field="fedexGtwy">
