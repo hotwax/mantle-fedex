@@ -8,7 +8,6 @@
             <parameter name="orderId" required="true"/>
             <parameter name="orderPartSeqId" required="true"/>
             <parameter name="packageInfoList" required="disabled"/>
-            <parameter name="requestMap" required="true"/>
         </in-parameters>
         <out-parameters>
             <parameter name="responseMap" required="true"/>
@@ -21,6 +20,7 @@
             <parameter name="postalContactMechId">
                 <description>Return if the destination address was validated and replaced</description>
             </parameter>
+            <parameter name="orderShippingRates"/>
         </out-parameters>
         <actions>
 
@@ -60,13 +60,23 @@
             <if condition="!request.orderRequestMap"><return/></if>
 
             <!-- Setting Connection With Fedex -->
-            <service-call name="mantle.fedex.FedexServices.set#Connection"
+            <service-call name="mantle.fedex.FedexServices.send#FedexRequest"
                     in-map="[shippingGatewayConfigId:shippingGatewayConfigId, method:'POST', path:'rate/v1/rates/quotes',
                     contentType:'application/json', requestMap:request.orderRequestMap,
                     apiTokenValue:apiTokenOpt.optionValue, xLocale:'en-US']"
                     out-map="response"/>
 
             <set field="responseMap" from="response.responseMap"/>
+            <set field="orderShippingRates" from="[:]"/>
+            <iterate list="responseMap.output.rateReplyDetails" entry="rateServices">
+                <iterate list="rateServices.ratedShipmentDetails" entry="ratedShipmentDetails">
+                    <set field="serviceCharge" from="ratedShipmentDetails.totalNetFedExCharge"/>
+                </iterate>
+                <set field="rateServiceMap" from="[serviceName:rateServices.serviceName,serviceCharge:serviceCharge]" type="NewMap"/>
+                <script>
+                    orderShippingRates.add(rateServiceMap)
+                </script>
+            </iterate>
         </actions>
     </service>
 
