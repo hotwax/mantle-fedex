@@ -1,14 +1,31 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <services xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/service-definition-2.1.xsd">
 
+   <!-- Testing OrderShippingRateService -->
+    <service verb="check" noun="OrderShippingRateService">
+        <in-parameters>
+            <parameter name="shipmentId" required="true"/>
+            <parameter name="shippingGatewayConfigId" required="true"/>
+            <parameter name="orderId" required="true"/>
+            <parameter name="orderPartSeqId" required="true"/>
+        </in-parameters>
+        <out-parameters>
+            <parameter name="orderShippingRates"/>
+        </out-parameters>
+        <actions>
+            <service-call name="mantle.fedex.FedexServices.get#AutoPackageInfo" in-map="[shipmentId:shipmentId]"
+                    out-map="packageDetails"/>
+            <set field="packageInfoList" from="packageDetails.packageInfoList"/>
+            <service-call name="mantle.fedex.FedexServices.get#OrderShippingRate" in-map="context" out-map="context"/>
+        </actions>
+    </service>
     <service verb="get" noun="OrderShippingRate">
         <description>Remove accountNumber tag, it will be automatically added.</description>
         <in-parameters>
             <parameter name="shippingGatewayConfigId" required="true"/>
             <parameter name="orderId" required="true"/>
             <parameter name="orderPartSeqId" required="true"/>
-            <parameter name="packageInfoList" required="disabled"/>
-            <parameter name="requestMap" required="true"/>
+            <parameter name="packageInfoList" type="List" required="true"/>
         </in-parameters>
         <out-parameters>
             <parameter name="responseMap" required="true"/>
@@ -21,6 +38,7 @@
             <parameter name="postalContactMechId">
                 <description>Return if the destination address was validated and replaced</description>
             </parameter>
+            <parameter name="orderShippingRates"/>
         </out-parameters>
         <actions>
 
@@ -53,26 +71,70 @@
             <set field="shipmentMethodEnumId" from="orderPart.shipmentMethodEnumId"/>
             <if condition="!shipmentMethodEnumId"><return message="Shipment method not set on order part ${orderId}:${orderPartSeqId}"/></if>
 
-            <!-- Converting Order Data to JSON Request Map -->
-            <service-call name="mantle.fedex.FedexServices.get#OrderRequestMap"
-                    in-map='[shippingGatewayConfigId:shippingGatewayConfigId, facilityId:orderPart.facilityId, fromPartyId:fromPartyId,
-                    toPartyId:toPartyId, postalContactMechId:orderPart.postalContactMechId, orderPart:orderPart]' out-map='request'/>
-            <if condition="!request.orderRequestMap"><return/></if>
 
-            <!-- Setting Connection With Fedex -->
-            <service-call name="mantle.fedex.FedexServices.set#Connection"
-                    in-map="[shippingGatewayConfigId:shippingGatewayConfigId, method:'POST', path:'rate/v1/rates/quotes',
-                    contentType:'application/json', requestMap:request.orderRequestMap,
-                    apiTokenValue:apiTokenOpt.optionValue, xLocale:'en-US']"
-                    out-map="response"/>
+            <iterate list="packageInfoList" entry="packageInfo">
+                <!-- Converting Order Data to JSON Request Map -->
+                <service-call name="mantle.fedex.FedexServices.get#OrderRequestMap"
+                        in-map='[shippingGatewayConfigId:shippingGatewayConfigId,packageInfo:packageInfo, facilityId:orderPart.facilityId,
+                        fromPartyId:fromPartyId, toPartyId:toPartyId, postalContactMechId:orderPart.postalContactMechId, orderPart:orderPart]'
+                        out-map='request'/>
+                <if condition="!request.orderRequestMap"><return/></if>
+                <!-- Setting Connection With Fedex -->
+                <service-call name="mantle.fedex.FedexServices.send#FedexRequest"
+                        in-map="[shippingGatewayConfigId:shippingGatewayConfigId, method:'POST', path:'rate/v1/rates/quotes',
+                        contentType:'application/json', requestMap:request.orderRequestMap,
+                        apiTokenValue:apiTokenOpt.optionValue, xLocale:'en-US']"
+                        out-map="response"/>
 
-            <set field="responseMap" from="response.responseMap"/>
+                <set field="responseMap" from="response.responseMap"/>
+                <set field="orderShippingRates" from="[]"/>
+                    <iterate list="responseMap.output.rateReplyDetails" entry="rateServices">
+                        <iterate list="rateServices.ratedShipmentDetails" entry="ratedShipmentDetails">
+                            <set field="serviceCharge" from="ratedShipmentDetails.totalNetFedExCharge"/>
+                        </iterate>
+                        <set field="rateServiceMap" from="[serviceName:rateServices.serviceName,serviceCharge:serviceCharge]" type="NewMap"/>
+                        <script>
+                            orderShippingRates.add(rateServiceMap)
+                        </script>
+                    </iterate>
+            </iterate>
+        </actions>
+    </service>
+
+    <service verb="get" noun="AutoPackageInfo">
+        <in-parameters>
+            <parameter name="shipmentId"/>
+        </in-parameters>
+        <out-parameters>
+            <parameter name="packageInfoList" type="List">
+                <parameter name="packageInfo" type="Map">
+                    <parameter name="shipmentBoxTypeId"/>
+                    <parameter name="weight" type="BigDecimal"/>
+                    <parameter name="weightUomId" default-value="WT_lb"/>
+                    <!-- Not in use currently -->
+                    <parameter name="quantityByProductId" type="Map"/>
+                </parameter>
+            </parameter>
+        </out-parameters>
+        <actions>
+            <entity-find entity-name="mantle.shipment.ShipmentPackage" list="packageList">
+                <econdition field-name="shipmentId" from="shipmentId"/>
+            </entity-find>
+            <set field="packageInfoList" from="[]"/>
+            <iterate list="packageList" entry="eachPackage">
+                <set field="packageInfo" from="[shipmentBoxTypeId:eachPackage.shipmentBoxTypeId, weight:eachPackage.weight,
+                weightUomId:eachPackage.weightUomId]" type="NewMap"/>
+                <script>
+                    packageInfoList.add(packageInfo)
+                </script>
+            </iterate>
         </actions>
     </service>
 
     <service verb="get" noun="OrderRequestMap">
         <in-parameters>
             <parameter name="shippingGatewayConfigId" required="true"/>
+            <parameter name="packageInfo" type="Map" required="true"/>
             <parameter name="facilityId" required="true"/>
             <parameter name="postalContactMechId" required="true"/>
             <parameter name="fromPartyId" required="true"/>
@@ -83,7 +145,6 @@
             <parameter name="orderRequestMap"/>
         </out-parameters>
         <actions>
-
             <!-- address_from -->
             <if condition="!facilityId"><return message="Facility not set on order part ${orderId}:${orderPartSeqId}"/></if>
             <service-call name="mantle.facility.ContactServices.get#FacilityDefaultShipOrigin" out-map="facOriginOut"
@@ -114,8 +175,6 @@
                 <field-map field-name="contactMechId" from="postalContactMechId"/></entity-find-one>
             <entity-find-one entity-name="mantle.party.contact.ContactMech" value-field="destContactMech">
                 <field-map field-name="contactMechId" from="destPostalAddress.contactMechId"/></entity-find-one>
-            <log message="==110 ${destPostalAddress} ${destContactMech.trustLevelEnumId} ${destContactMech.trustLevelEnumId
-                 in ['CmtlValid', 'CmtlVerified']}"/>
             <if condition="!destContactMech.trustLevelEnumId">
                 <service-call name="mantle.fedex.FedexServices.validate#PostalAddress" out-map="toValidateOut"
                         in-map="[contactMechId:postalContactMechId, partyId:toPartyId,
@@ -150,6 +209,30 @@
                 <select-field field-name="geoCodeAlpha2"/>
             </entity-find-one>
 
+            <!-- dimensions -->
+            <entity-find-one entity-name="mantle.shipment.ShipmentBoxType" value-field="boxType">
+                <field-map field-name="shipmentBoxTypeId" from="packageInfo.shipmentBoxTypeId"/></entity-find-one>
+            <if condition="boxType == null"><message>Package has no box type, skipping</message><return/></if>
+            <if condition="!boxType.boxLength || !boxType.boxWidth || !boxType.boxHeight">
+                <message>Box type ${boxType.shipmentBoxTypeId} is missing dimensions (length, width, height) or dimensionUomId, s
+                    kipping package</message><return/>
+            </if>
+            <entity-find-one entity-name="moqui.basic.Uom" value-field="dimensionUom">
+                <field-map field-name="uomId" from="boxType.dimensionUomId ?: 'LEN_in'"/></entity-find-one>
+            <if condition="!(dimensionUom.abbreviation in ['in', 'cm'])">
+                <message>Package ${packageInfo_index} box type ${boxType.shipmentBoxTypeId} dimension unit is '${distance_unit}',
+                must be one of: 'cm', 'in'; skipping package</message>
+                <return/>
+            </if>
+            <!-- weight -->
+            <entity-find-one entity-name="moqui.basic.Uom" value-field="weightUom">
+                <field-map field-name="uomId" from="packageInfo.weightUomId ?: 'WT_lb'"/></entity-find-one>
+            <if condition="!(weightUom.abbreviation in ['lb', 'kg'])">
+                <message>Package ${packageInfo_index} box type ${boxType.shipmentBoxTypeId} weight unit is '${mass_unit}',
+                must be one of: 'lb', 'kg'; skipping package</message>
+                <return/>
+            </if>
+
             <!-- Address details for requestMap -->
             <set field="saddress" from="[streetLines:[originPostalAddress.address1], city:originPostalAddress.city,
                  stateOrProvinceCode:originGeoStateData.geoCodeAlpha2, postalCode:originPostalAddress.postalCode,
@@ -161,9 +244,11 @@
             <!-- Collecting details for OrderRequestMap -->
             <set field='shipper' from="[address:saddress]" type="NewMap"/>
             <set field='recipient' from="[address:raddress]" type="NewMap"/>
-            <set field="weight" from="[units:'LB',value:'10']"/>
-            <set field="requestedPackageLineItems" from="[weight:weight]" type="NewMap"/>
-            <set field="rateRequestType" from="['ACCOUNT','LIST']"/>
+            <set field="weight" from="[units:weightUom.abbreviation=='kg'?'KG':'LB',value:packageInfo.weight]"/>
+            <set field="dimensions" from="[length:boxType.boxLength,width:boxType.boxWidth,height:boxType.boxHeight,
+                 units:dimensionUom.abbreviation=='in'?'IN':'CM']"/>
+            <set field="requestedPackageLineItems" from="[weight:weight,dimensions:dimensions]" type="NewMap"/>
+            <set field="rateRequestType" from="['ACCOUNT']"/>
             <set field="requestedShipment" from= "[shipper:shipper, recipient:recipient, pickupType:'DROPOFF_AT_FEDEX_LOCATION',
                  rateRequestType:rateRequestType, requestedPackageLineItems:[requestedPackageLineItems]]" type="NewMap"/>
             <set field="accountNumber" from="[value:'740561073']" type="NewMap"/>
