@@ -58,23 +58,28 @@
 
     <!-- Box Details -->
     <mantle.shipment.ShipmentBoxType shipmentBoxTypeId="FedEx_Box_10kg" description="FedEx® 10kg Box"
-        dimensionUomId="LEN_in" boxLength="15.81" boxWidth="12.94" boxHeight="10.19" gatewayBoxId="FedEx_Box_10kg"/>
+        dimensionUomId="LEN_in" boxLength="15.81" boxWidth="12.94" boxHeight="10.19" gatewayBoxId="FedEx_Box_10kg" weightUomId="WT_kg"/>
     <mantle.shipment.ShipmentBoxType shipmentBoxTypeId="FedEx_Box_25kg" description="FedEx® 25kg Box"
         dimensionUomId="LEN_in" boxLength="54.80" boxWidth="42.10" boxHeight="33.50" gatewayBoxId="FedEx_Box_25kg"/>
     <mantle.shipment.carrier.ShippingGatewayBoxType shippingGatewayConfigId="FEDEX_INTEGRATION" shipmentBoxTypeId="FedEx_Box_10kg"
         gatewayBoxId="FedEx_Box_10kg"/>
+
+    <!-- Package Details -->
     <mantle.shipment.ShipmentPackage shipmentId="Fedex_Shipment" shipmentBoxTypeId="FedEx_Box_10kg" shipmentPackageSeqId="01"
         weight="100" weightUomId="WT_kg"/>
+    <mantle.shipment.ShipmentPackageRouteSegment shipmentId="Fedex_Shipment" shipmentPackageSeqId="01" shipmentRouteSegmentSeqId="01"/>
 
     <!-- Product Details -->
     <mantle.product.Product productId="Fedex_Product" amountUomId="INR" amountFixed="200"/>
     <mantle.shipment.ShipmentItem shipmentId="Fedex_Shipment" productId="Fedex_Product" quantity="10"/>
-    <mantle.shipment.ShipmentPackageContent shipmentId="Fedex_Shipment"  shipmentPackageSeqId="01" productId="Fedex_Product" quantity="3"/>
+    <mantle.shipment.ShipmentPackageContent shipmentId="Fedex_Shipment"  shipmentPackageSeqId="01" productId="Fedex_Product"
+        quantity="3"/>
 
     <!-- Order Details -->
     <mantle.order.OrderHeader orderId="Fedex_Order" currencyUomId="INR" grandTotal="200"/>
-    <mantle.order.OrderPart orderId="Fedex_Order" orderPartSeqId="01" vendorPartyId="FedexPartyOrigin" customerPartyId="FedexPartyDest"
-        facilityId="Fedex_Facility" carrierPartyId="FedexCarrier" shipmentMethodEnumId="ShMthSecondDay" postalContactMechId="Fedex_Dest_PA"/>
-
+    <mantle.order.OrderPart orderId="Fedex_Order" orderPartSeqId="01" vendorPartyId="FedexPartyOrigin"
+        customerPartyId="FedexPartyDest" facilityId="Fedex_Facility" carrierPartyId="FedexCarrier"
+        shipmentMethodEnumId="ShMthSecondDay" postalContactMechId="Fedex_Dest_PA"/>
+    <mantle.order.OrderItem orderId="Fedex_Order" orderItemSeqId="01" orderPartSeqId="01" productId="Fedex_Product"/>
 </entity-facade-xml>
 
