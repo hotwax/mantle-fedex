@@ -23,18 +23,16 @@
             </if>
 
             <!-- Converting Label Data to JSON Request Map -->
-            <service-call name="mantle.fedex.FedexServices.get#LabelRequestMap"
-                    in-map='[shipmentId: shipmentId, shipmentRouteSegmentSeqId:shipmentRouteSegmentSeqId,
-                    shippingGatewayConfigId:shippingGatewayConfigId]'
-                    out-map='request'/>
+            <service-call name="mantle.fedex.FedexServices.get#LabelRequestMap" out-map="request"
+                    in-map="[shipmentId: shipmentId, shipmentRouteSegmentSeqId:shipmentRouteSegmentSeqId,
+                             shippingGatewayConfigId:shippingGatewayConfigId]"/>
             <if condition="!request.labelRequestMap"><return/></if>
 
             <!-- Setting Connection With Fedex -->
-            <service-call name="mantle.fedex.FedexServices.set#Connection"
+            <service-call name="mantle.fedex.FedexServices.send#FedexRequest" out-map="response"
                     in-map="[shippingGatewayConfigId:shippingGatewayConfigId, method:'POST',path:'ship/v1/shipments',
-                    contentType:'application/json', requestMap:request.labelRequestMap,
-                    apiTokenValue:apiTokenOpt.optionValue,xLocale:'en-US']"
-                    out-map="response"/>
+                             contentType:'application/json', requestMap:request.labelRequestMap,
+                             apiTokenValue:apiTokenOpt.optionValue,xLocale:'en-US']"/>
             <set field="responseMap" from="response.responseMap"/>
 
         </actions>
@@ -124,7 +122,11 @@
                  blockInsightVisibility:false, shippingChargesPayment:shippingChargesPayment,
                  shipmentSpecialServices:shipmentSpecialServices, labelSpecification:labelSpecification,
                  requestedPackageLineItems:[requestedPackageLineItems]]" type="NewMap"/>
-            <set field="accountNumber" from="[value:'740561073']" type="NewMap"/>
+
+            <entity-find-one entity-name="ShipmentGatewayFedex" value-field="fedexGtwy">
+                <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
+            </entity-find-one>
+            <set field="accountNumber" from="[value:fedexGtwy.accountNumber]" type="NewMap"/>
 
             <!-- Creating labelRequestMap -->
             <set field="labelRequestMap" from="[labelResponseOptions:'URL_ONLY', requestedShipment:requestedShipment,
