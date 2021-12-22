@@ -4,6 +4,24 @@
     <service verb="validate" noun="PostalAddress">
             <implements service="mantle.shipment.CarrierServices.validate#ShippingPostalAddress"/>
         <actions>
+            <!-- If a party/facility is expired(If replacesContactMechId is set) then address is not validated -->
+            <if condition="partyId"><then>
+                <entity-find entity-name="mantle.party.contact.PartyContactMechInfo" list="replacesPcmiList">
+                    <date-filter/><econdition field-name="partyId"/>
+                    <econdition field-name="replacesContactMechId" from="contactMechId"/>
+                    <select-field field-name="contactMechId"/><order-by field-name="contactMechId"/>
+                </entity-find>
+                <if condition="replacesPcmiList"><set field="contactMechId" from="replacesPcmiList[0].contactMechId"/>
+                    <return/></if>
+            </then><else-if condition="facilityId">
+                <entity-find entity-name="mantle.facility.FacilityContactMechInfo" list="replacesFcmiList">
+                    <date-filter/><econdition field-name="facilityId"/>
+                    <econdition field-name="replacesContactMechId" from="contactMechId"/>
+                    <select-field field-name="contactMechId"/><order-by field-name="contactMechId"/>
+                </entity-find>
+                <if condition="replacesFcmiList"><set field="contactMechId" from="replacesFcmiList[0].contactMechId"/>
+                    <return/></if>
+            </else-if></if>
             <!-- Searching FedexApiToken -->
             <entity-find-one entity-name="ShippingGatewayOption" value-field="apiTokenOpt">
                     <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
@@ -14,21 +32,21 @@
             </if>
 
             <!-- Converting Address Data to JSON Request Map -->
-            <service-call name="mantle.fedex.FedexServices.get#AddressMap" in-map='[contactMechId:contactMechId, partyId:partyId]'
-                    out-map='addressMap'/>
+            <service-call name="mantle.fedex.FedexServices.get#AddressMap" in-map="[contactMechId:contactMechId]"
+                    out-map="addressMap"/>
             <if condition="!addressMap"><return/></if>
 
             <!-- Setting Connection With Fedex -->
-            <service-call name="mantle.fedex.FedexServices.set#Connection"
+            <service-call name="mantle.fedex.FedexServices.send#FedexRequest" out-map="response"
                     in-map="[shippingGatewayConfigId:shippingGatewayConfigId,method:'POST', path:'address/v1/addresses/resolve',
-                    contentType:'application/json', requestMap:addressMap.addressMap, apiTokenValue:apiTokenOpt.optionValue]"
-                    out-map="response"/>
-            <if condition="response.responseMap==null || response.responseMap == ''">
+                    contentType:'application/json', requestMap:addressMap.addressMap, apiTokenValue:apiTokenOpt.optionValue]"/>
+            <set field="responseMap" from="response.responseMap"/>
+            <if condition="responseMap==null || responseMap == ''">
                 <return type="warning" message="In validate#PostalAddress service, response map is empty."/>
             </if>
-
-            <set field="responseMap" from="response.responseMap"/>
             <set field="resolvedAddress" from="responseMap.output.resolvedAddresses[0]"/>
+            <!--Note: currently service is validating the address only on the basis of the response codes -->
+            <!--TODO: Not updating ConatctMech related entity with the cleansed address based on the quality of response -->
 
             <!-- Verifying Correctness of Address -->
             <set field="trustLevelEnumId" from="(resolvedAddress.attributes.InterpolatedStreetAddress=='false' &amp;&amp;
@@ -39,66 +57,12 @@
             <set field="origContactMech.trustLevelEnumId" from="trustLevelEnumId"/>
             <entity-update value-field="origContactMech"/>
 
-            <!-- Searching Country and State/Province Code -->
-            <entity-find-one entity-name="Geo" value-field="resolvedAddress.geoCountryData">
-                <field-map field-name="geoTypeEnumId" value="GEOT_COUNTRY"/>
-                <field-map field-name="geoCodeAlpha2" from="resolvedAddress.countryCode"/>
-                <select-field field-name="geoCodeAlpha2"/>
-            </entity-find-one>
-            <entity-find-one entity-name="GeoAssocAndToDetail" value-field="resolvedAddress.geoStateData">
-                <field-map field-name="geoId" from="resolvedAddress.geoCountryData.geoId"/>
-                <field-map field-name="geoCodeAlpha2" from="resolvedAddress.stateOrProvinceCode"/>
-                <select-field field-name="toGeoId"/>
-            </entity-find-one>
-
-            <!-- A Section of input parameters of update#PartyPostalAddress Service -->
-             <set field="paInMap" from="[contactMechId:contactMechId,address1:resolvedAddress.streetLinesToken[0],
-                         city:resolvedAddress.city,stateProvinceGeoId:resolvedAddress.geoStateData.toGeoId,
-                         postalCode:resolvedAddress.postalCode]"/>
-
-            <if condition="!facilityId &amp;&amp; !partyId">
-                <return type="danger" message="In validate#PostalAddress service, both partyId and facilityId are not avaliable."/>
-            </if>
-            <if condition="facilityId">
-                <entity-find entity-name="mantle.facility.FacilityContactMech" list="origFcmList">
-                        <econdition field-name="facilityId"/><econdition field-name="contactMechId"/>
-                </entity-find>
-
-                <!-- Update FacilityPostalAddress, if Facility linked with contactMech -->
-                <if condition="origFcmList">
-                    <service-call name="mantle.facility.ContactServices.update#FacilityPostalAddress" out-map="paOut"
-                            in-map="paInMap + [facilityId:facilityId, expireCurrent:true]"/>
-                    <log message="FacilityContactMechId updated from ${contactMechId} to ${paOut.contactMechId}"/>
-                    <set field="contactMechId" from="paOut.contactMechId"/>
-                    <entity-find-one entity-name="mantle.party.contact.PostalAddress" value-field="postalAddress"/>
-                </if>
-                <else>
-                    <log level="warn" message="In validate#PostalAddress service, Facility not associated with ContactMech"/>
-                </else>
-            </if>
-            <if condition="partyId">
-                <entity-find entity-name="mantle.party.contact.PartyContactMech" list="origPcmList">
-                    <econdition field-name="partyId"/><econdition field-name="contactMechId"/>
-                </entity-find>
-
-                <!-- Update PartyPostalAddress, if Party linked with contactMech -->
-                <if condition="origPcmList">
-                    <service-call name="mantle.party.ContactServices.update#PartyPostalAddress" out-map="paOut"
-                            in-map="paInMap + [partyId:partyId, expireCurrent:false, contactMechPurposeId:'PostalShippingDest']"/>
-                    <log message="PartyContactMechId updated from ${contactMechId} to ${paOut.contactMechId}"/>
-                    <set field="contactMechId" from="paOut.contactMechId"/>
-                    <entity-find-one entity-name="mantle.party.contact.PostalAddress" value-field="postalAddress"/>
-                </if>
-                <else>
-                    <log level="warn" message="In validate#PostalAddress service, Party not associated with ContactMech"/>
-                </else>
-            </if>
+            <log message="Fedex validate address ${contactMechId} trust ${trustLevelEnumId}}"/>
 
             <!-- Updating trustLevelEnumId value -->
             <entity-find-one entity-name="mantle.party.contact.ContactMech" value-field="contactMech"/>
             <set field="contactMech.trustLevelEnumId" from="trustLevelEnumId"/>
             <entity-update value-field="contactMech"/>
-            <entity-update value-field="postalAddress"/>
         </actions>
     </service>
 
@@ -106,21 +70,14 @@
     <service verb="get" noun="AddressMap">
         <in-parameters>
             <parameter name="contactMechId" required="true"/>
-            <parameter name="partyId" required="true"/>
         </in-parameters>
         <out-parameters>
             <parameter name="addressMap" type="Map"/>
         </out-parameters>
         <actions>
-            <entity-find-one entity-name="mantle.party.contact.PartyContactMech" value-field="partyContactMech">
-                    <field-map field-name="contactMechId" from="contactMechId"/>
-                    <field-map field-name="contactMechId" from="contactMechId"/>
-            </entity-find-one>
 
             <!-- Searching PostalAddress -->
-            <entity-find-one entity-name="mantle.party.contact.PostalAddress" value-field="postalAddress">
-                <field-map field-name="contactMechId" from="contactMechId"/>
-            </entity-find-one>
+            <entity-find-one entity-name="mantle.party.contact.PostalAddress" value-field="postalAddress"/>
             <if condition="!postalAddress">
                 <return type="danger" message="In get#AddressMap service, postal address not found."/>
             </if>
@@ -136,13 +93,12 @@
             </entity-find-one>
 
             <!-- Creating AddressMap -->
-            <set field="adrs" from="streetLines:[postalAddress.address1],
+            <set field="address" from="streetLines:[postalAddress.address1],
                                     city:postalAddress.city,
                                     stateOrProvinceCode:geoStateData.geoCodeAlpha2,
                                     countryCode:geoCountryData.geoCodeAlpha2,
                                     postalCode:postalAddress.postalCode" type="NewMap"/>
-            <set field="addressMap" from="[addressesToValidate:[[address:adrs]]]" type="NewMap"/>
-            <set field="validContactMechId" value="true"/>
+            <set field="addressMap" from="[addressesToValidate:[[address:address]]]" type="NewMap"/>
 
         </actions>
     </service>
