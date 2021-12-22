@@ -54,7 +54,7 @@
         destPostalContactMechId="Fedex_Dest_PA" carrierPartyId="FedEx" shipmentMethodEnumId="ShMthSecondDay"
         statusId="ShrssNotStarted"/>
     <mantle.shipment.ShipmentContactMech shipmentId="Fedex_Shipment" contactMechPurposeId="PostalShippingDest"
-        contactMechId="Fedex_Dest_PA"/>st
+        contactMechId="Fedex_Dest_PA"/>
 
     <!-- Box Details -->
     <mantle.shipment.ShipmentBoxType shipmentBoxTypeId="FedEx_Box_10kg" description="FedEx® 10kg Box"
@@ -67,13 +67,15 @@
     <!-- Package Details -->
     <mantle.shipment.ShipmentPackage shipmentId="Fedex_Shipment" shipmentBoxTypeId="FedEx_Box_10kg" shipmentPackageSeqId="01"
         weight="100" weightUomId="WT_kg"/>
-    <mantle.shipment.ShipmentPackageRouteSegment shipmentId="Fedex_Shipment" shipmentPackageSeqId="01" shipmentRouteSegmentSeqId="01"/>
+    <mantle.shipment.ShipmentPackageRouteSeg shipmentId="Fedex_Shipment" shipmentPackageSeqId="01" shipmentRouteSegmentSeqId="01"/>
 
     <!-- Product Details -->
     <mantle.product.Product productId="Fedex_Product" amountUomId="INR" amountFixed="200"/>
     <mantle.shipment.ShipmentItem shipmentId="Fedex_Shipment" productId="Fedex_Product" quantity="10"/>
     <mantle.shipment.ShipmentPackageContent shipmentId="Fedex_Shipment"  shipmentPackageSeqId="01" productId="Fedex_Product"
         quantity="3"/>
+    <mantle.shipment.ShipmentItemSource shipmentItemSourceId="Fedex_Source" shipmentId="Fedex_Shipment" productId="Fedex_Product"
+        orderId="Fedex_Order"/>
 
     <!-- Order Details -->
     <mantle.order.OrderHeader orderId="Fedex_Order" currencyUomId="INR" grandTotal="200"/>
