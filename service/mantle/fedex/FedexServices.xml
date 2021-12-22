@@ -30,35 +30,39 @@
             <if condition="!apiTokenOpt.optionValue">
                 <return type="warning" message=" ${shippingGatewayConfigId} has no FedexApiToken, not validating address"/>
             </if>
-
             <!-- Converting Address Data to JSON Request Map -->
             <service-call name="mantle.fedex.FedexServices.get#AddressMap" in-map="[contactMechId:contactMechId]"
                     out-map="addressMap"/>
             <if condition="!addressMap"><return/></if>
 
             <!-- Setting Connection With Fedex -->
+            <if condition="addressMap.isAddressComplete=='true'">
             <service-call name="mantle.fedex.FedexServices.send#FedexRequest" out-map="response"
                     in-map="[shippingGatewayConfigId:shippingGatewayConfigId,method:'POST', path:'address/v1/addresses/resolve',
                     contentType:'application/json', requestMap:addressMap.addressMap, apiTokenValue:apiTokenOpt.optionValue]"/>
-            <set field="responseMap" from="response.responseMap"/>
-            <if condition="responseMap==null || responseMap == ''">
-                <return type="warning" message="In validate#PostalAddress service, response map is empty."/>
             </if>
-            <set field="resolvedAddress" from="responseMap.output.resolvedAddresses[0]"/>
-            <!--Note: currently service is validating the address only on the basis of the response codes -->
-            <!--TODO: Not updating ConatctMech related entity with the cleansed address based on the quality of response -->
 
             <!-- Verifying Correctness of Address -->
-            <set field="trustLevelEnumId" from="(resolvedAddress.attributes.InterpolatedStreetAddress=='false' &amp;&amp;
-                 resolvedAddress.attributes.AddressType=='STANDARDIZED')? 'CmtlValid' :'CmtlInvalid'"/>
-
+            <set field="responseMap" from="response.responseMap"/>
+            <if condition="addressMap.isAddressComplete=='false' || responseMap==null || responseMap == ''"><then>
+                <set field="trustLevelEnumId" value="CmtlInvalid"/>
+            </then><else>
+                <set field="statusCodes" from="responseMap.output.resolvedAddresses[0].attributes"/>
+                <if condition="statusCodes.DPV=='false' || statusCodes.Resolved=='false' || statusCode.AddressType=='false'
+                    || statusCodes.InterpolatedStreetAddress=='true'"><then>
+                    <set field="trustLevelEnumId" value="CmtlInvalid"/>
+                </then><else>
+                    <set field="trustLevelEnumId" value="CmtValid"/>
+                </else>
+                </if>
+            </else>
+            </if>
             <!-- Updating trustLevelEnumId value -->
             <entity-find-one entity-name="mantle.party.contact.ContactMech" value-field="origContactMech"/>
             <set field="origContactMech.trustLevelEnumId" from="trustLevelEnumId"/>
             <entity-update value-field="origContactMech"/>
 
             <log message="Fedex validate address ${contactMechId} trust ${trustLevelEnumId}}"/>
-
             <!-- Updating trustLevelEnumId value -->
             <entity-find-one entity-name="mantle.party.contact.ContactMech" value-field="contactMech"/>
             <set field="contactMech.trustLevelEnumId" from="trustLevelEnumId"/>
@@ -73,6 +77,7 @@
         </in-parameters>
         <out-parameters>
             <parameter name="addressMap" type="Map"/>
+            <parameter name="isAddressComplete" type="Boolean"/>
         </out-parameters>
         <actions>
 
@@ -83,7 +88,7 @@
             </if>
 
             <!-- Searching Country and State/Province Code -->
-            <entity-find-one entity-name="Geo" value-field="geoStateData">
+            <entity-find-one entity-name="Geo" value-field="geoStateProvinceData">
                 <field-map field-name="geoId" from="postalAddress.stateProvinceGeoId"/>
                 <select-field field-name="geoCodeAlpha2"/>
             </entity-find-one>
@@ -93,13 +98,19 @@
             </entity-find-one>
 
             <!-- Creating AddressMap -->
-            <set field="address" from="streetLines:[postalAddress.address1],
+            <set field="address" from="streetLines:[postalAddress.address1, postalAddress.address2],
                                     city:postalAddress.city,
-                                    stateOrProvinceCode:geoStateData.geoCodeAlpha2,
+                                    stateOrProvinceCode:geoStateProvinceData.geoCodeAlpha2,
                                     countryCode:geoCountryData.geoCodeAlpha2,
                                     postalCode:postalAddress.postalCode" type="NewMap"/>
             <set field="addressMap" from="[addressesToValidate:[[address:address]]]" type="NewMap"/>
-
+            <if condition="postalAddress.city==null || geoCountryData.geoCodeAlpha2==null ||
+                postalAddress.address1==null"><then>
+                <set field="isAddressComplete" value="false"/>
+            </then><else>
+                <set field="isAddressComplete" value="true"/>
+            </else>
+            </if>
         </actions>
     </service>
 </services>
