@@ -19,7 +19,7 @@
                 <econdition field-name="productId" operator="is-not-null"/>
             </entity-find>
             <service-call name="mantle.fedex.FedexServices.get#AutoPackageInfo" in-map="[itemInfoList:itemInfoList]"
-                    out-map="packageDetails"/>
+                out-map="packageDetails"/>
             <set field="packageInfoList" from="packageDetails.packageInfoList"/>
 
             <service-call name="mantle.fedex.FedexServices.get#OrderShippingRate" in-map="context" out-map="context"/>
@@ -81,15 +81,15 @@
             <iterate list="packageInfoList" entry="packageInfo">
                 <!-- Converting Order Data to JSON Request Map -->
                 <service-call name="mantle.fedex.FedexServices.get#OrderRequestMap" out-map="request"
-                        in-map="[shippingGatewayConfigId:shippingGatewayConfigId,packageInfo:packageInfo,
-                        facilityId:orderPart.facilityId,fromPartyId:fromPartyId, toPartyId:toPartyId,
-                        postalContactMechId:orderPart.postalContactMechId, orderPart:orderPart]"/>
+                    in-map="[shippingGatewayConfigId:shippingGatewayConfigId,packageInfo:packageInfo,
+                    facilityId:orderPart.facilityId,fromPartyId:fromPartyId, toPartyId:toPartyId,
+                    postalContactMechId:orderPart.postalContactMechId, orderPart:orderPart]"/>
                 <if condition="!request.orderRequestMap"><return/></if>
                 <!-- Setting Connection With Fedex -->
                 <service-call name="mantle.fedex.FedexServices.send#FedexRequest" out-map="response"
-                        in-map="[shippingGatewayConfigId:shippingGatewayConfigId, method:'POST', path:'rate/v1/rates/quotes',
-                        contentType:'application/json', requestMap:request.orderRequestMap,
-                        apiTokenValue:apiTokenOpt.optionValue, xLocale:'en-US']"/>
+                    in-map="[shippingGatewayConfigId:shippingGatewayConfigId, method:'POST', path:'rate/v1/rates/quotes',
+                    contentType:'application/json', requestMap:request.orderRequestMap,
+                    apiTokenValue:apiTokenOpt.optionValue, xLocale:'en-US']"/>
 
                 <set field="responseMap" from="response.responseMap"/>
                 <set field="orderShippingRates" from="[]"/>
@@ -161,8 +161,8 @@
                 <field-map field-name="contactMechId" from="facOriginOut.postalContactMechId"/></entity-find-one>
             <if condition="!originContactMech.trustLevelEnumId">
                 <service-call name="mantle.fedex.FedexServices.validate#PostalAddress" out-map="fromValidateOut"
-                        in-map="[contactMechId:facOriginOut.postalContactMechId, partyId:fromPartyId, facilityId:facilityId,
-                        shippingGatewayConfigId:shippingGatewayConfigId]"/>
+                    in-map="[contactMechId:facOriginOut.postalContactMechId, partyId:fromPartyId, facilityId:facilityId,
+                    shippingGatewayConfigId:shippingGatewayConfigId]"/>
                 <entity-find-one entity-name="mantle.party.contact.PostalAddress" value-field="originPostalAddress">
                         <field-map field-name="contactMechId" from="fromValidateOut.contactMechId"/></entity-find-one>
                 <entity-find-one entity-name="mantle.party.contact.ContactMech" value-field="originContactMech">
@@ -180,7 +180,7 @@
                 <field-map field-name="contactMechId" from="destPostalAddress.contactMechId"/></entity-find-one>
             <if condition="!destContactMech.trustLevelEnumId">
                 <service-call name="mantle.fedex.FedexServices.validate#PostalAddress" in-map="[contactMechId:postalContactMechId,
-                        partyId:toPartyId,shippingGatewayConfigId:shippingGatewayConfigId]" out-map="toValidateOut"/>
+                    partyId:toPartyId,shippingGatewayConfigId:shippingGatewayConfigId]" out-map="toValidateOut"/>
                 <set field="postalContactMechId" from="toValidateOut.contactMechId"/>
                 <set field="orderPart.postalContactMechId" from="postalContactMechId"/>
                 <entity-update value-field="orderPart"/>
@@ -194,7 +194,7 @@
             </if>
 
             <!-- Searching Country and State/Province Code -->
-            <entity-find-one entity-name="Geo" value-field="originGeoStateData">
+            <entity-find-one entity-name="Geo" value-field="originGeoStateProvinceData">
                 <field-map field-name="geoId" from="originPostalAddress.stateProvinceGeoId"/>
                 <select-field field-name="geoCodeAlpha2"/>
             </entity-find-one>
@@ -202,7 +202,7 @@
                 <field-map field-name="geoId" from="originPostalAddress.countryGeoId"/>
                 <select-field field-name="geoCodeAlpha2"/>
             </entity-find-one>
-            <entity-find-one entity-name="Geo" value-field="destGeoStateData">
+            <entity-find-one entity-name="Geo" value-field="destGeoStateProvinceData">
                 <field-map field-name="geoId" from="destPostalAddress.stateProvinceGeoId"/>
                 <select-field field-name="geoCodeAlpha2"/>
             </entity-find-one>
@@ -237,10 +237,10 @@
 
             <!-- Address details for requestMap -->
             <set field="saddress" from="[streetLines:[originPostalAddress.address1], city:originPostalAddress.city,
-                 stateOrProvinceCode:originGeoStateData.geoCodeAlpha2, postalCode:originPostalAddress.postalCode,
+                 stateOrProvinceCode:originGeoStateProvinceData.geoCodeAlpha2, postalCode:originPostalAddress.postalCode,
                  countryCode:originGeoCountryData.geoCodeAlpha2]" type="NewMap"/>
             <set field="raddress" from="[streetLines:[destPostalAddress.address1, destPostalAddress.address2],
-                 city:destPostalAddress.city, stateOrProvinceCode:destGeoStateData.geoCodeAlpha2,
+                 city:destPostalAddress.city, stateOrProvinceCode:destGeoStateProvinceData.geoCodeAlpha2,
                  postalCode:destPostalAddress.postalCode, countryCode:destGeoCountryData.geoCodeAlpha2]" type="NewMap"/>
 
             <!-- Collecting details for OrderRequestMap -->
