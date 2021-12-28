@@ -2,17 +2,17 @@
 <services xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
           xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/service-definition-2.1.xsd">
 
-    <service verb="request" noun="ShippingLabels">
+   <service verb="request" noun="ShippingLabels">
         <in-parameters>
             <parameter name="shipmentId" required="true"/>
             <parameter name="shipmentRouteSegmentSeqId" required="true"/>
             <parameter name="shippingGatewayConfigId" required="true"/>
+            <parameter name="shipmentMethodEnumId"/>
         </in-parameters>
         <out-parameters>
             <parameter name="responseMap"/>
         </out-parameters>
         <actions>
-
             <!-- Searching FedexApiToken -->
             <entity-find-one entity-name="ShippingGatewayOption" value-field="apiTokenOpt">
                     <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
@@ -22,66 +22,147 @@
                 <return type="warning"  message=" ${shippingGatewayConfigId} has no FedexApiToken, not getting rates"/>
             </if>
 
-            <!-- Converting Label Data to JSON Request Map -->
-            <service-call name="mantle.fedex.FedexServices.get#LabelRequestMap" out-map="request"
-                    in-map="[shipmentId: shipmentId, shipmentRouteSegmentSeqId:shipmentRouteSegmentSeqId,
-                             shippingGatewayConfigId:shippingGatewayConfigId]"/>
-            <if condition="!request.labelRequestMap"><return/></if>
+            <entity-find-one entity-name="mantle.shipment.Shipment" value-field="shipment" for-update="true"/>
+            <if condition="shipment == null"><return error="true" message="Shipment not found with ID ${shipmentId}"/></if>
+            <entity-find-one entity-name="mantle.shipment.ShipmentRouteSegment" value-field="routeSegment"/>
+            <if condition="routeSegment == null">
+                <return error="true" message="Shipment Route Segment not found with ID ${shipmentId}:${shipmentRouteSegmentSeqId}"/>
+            </if>
 
-            <!-- Setting Connection With Fedex -->
-            <service-call name="mantle.fedex.FedexServices.send#FedexRequest" out-map="response"
+            <!--If shipmentPackageSeqId present, will call service for one package, else for all packages-->
+            <entity-find entity-name="mantle.shipment.ShipmentPackageRouteSeg" list="packageRouteSegList">
+                <econdition field-name="shipmentId"/><econdition field-name="shipmentRouteSegmentSeqId"/>
+                <econdition field-name="shipmentPackageSeqId" ignore-if-empty="true"/>
+            </entity-find>
+
+            <!-- Create ShipmentInfo Details -->
+            <service-call name="mantle.fedex.FedexServices.make#ShipmentInfo" in-map="context" out-map="context"/>
+
+            <iterate list="packageRouteSegList" entry="packageRouteSeg">
+                <!-- Calling FedEx service for everyPackage -->
+                <service-call name="mantle.fedex.FedexServices.make#ShipmentPackageInfo" out-map="request"
+                    in-map="[shipment:shipment, routeSegment:routeSegment, packageRouteSeg:packageRouteSeg,
+                    address_from:address_from, address_to:address_to, shipmentMethodEnumId:shipmentMethodEnumId]"/>
+                <if condition="!request.labelRequestMap"><return/></if>
+
+                <!-- Setting Connection With Fedex -->
+                <service-call name="mantle.fedex.FedexServices.send#FedexRequest" out-map="response"
                     in-map="[shippingGatewayConfigId:shippingGatewayConfigId, method:'POST',path:'ship/v1/shipments',
-                             contentType:'application/json', requestMap:request.labelRequestMap,
-                             apiTokenValue:apiTokenOpt.optionValue,xLocale:'en-US']"/>
-            <set field="responseMap" from="response.responseMap"/>
+                    contentType:'application/json', requestMap:request.labelRequestMap,
+                    apiTokenValue:apiTokenOpt.optionValue,xLocale:'en-US']"/>
+                <set field="responseMap" from="response.responseMap"/>
+            </iterate>
 
         </actions>
     </service>
-    <service verb="get" noun="LabelRequestMap">
+    <service verb="make" noun="ShipmentInfo">
+       <in-parameters>
+           <parameter name="shipmentId" required="true"/>
+           <parameter name="shipmentRouteSegmentSeqId" required="true"/>
+           <parameter name="shippingGatewayConfigId" required="true"/>
+           <parameter name="shipment" type="EntityValue" required="true"/>
+           <parameter name="routeSegment" type="EntityValue" required="true"/>
+           <parameter name="shipmentMethodEnumId"/>
+       </in-parameters>
+       <out-parameters>
+           <parameter name="address_from" type="Map"/>
+           <parameter name="address_to" type="Map"/>
+           <parameter name="shipmentMethodEnumId"/>
+       </out-parameters>
+       <actions>
+
+           <!--Searching Origin and Dest PostalAddress-->
+           <entity-find-one entity-name="PostalAddress" value-field="originPostalAddress">
+               <field-map field-name="contactMechId" from="routeSegment.originPostalContactMechId"></field-map>
+           </entity-find-one>
+           <entity-find-one entity-name="PostalAddress" value-field="destPostalAddress">
+               <field-map field-name="contactMechId" from="routeSegment.destPostalContactMechId"></field-map>
+           </entity-find-one>
+
+           <!--Searching Origin and Dest  Organization -->
+           <entity-find-one entity-name="Organization" value-field="originOrganization">
+               <field-map field-name="partyId" from="shipment.fromPartyId"></field-map>
+           </entity-find-one>
+           <entity-find-one entity-name="Organization" value-field="destOrganization">
+               <field-map field-name="partyId" from="shipment.toPartyId"></field-map>
+           </entity-find-one>
+
+           <!--Searching Origin and Dest TelecomNumber -->
+           <entity-find-one entity-name="TelecomNumber" value-field="originNumber">
+               <field-map field-name="contactMechId" from="routeSegment.originTelecomContactMechId"></field-map>
+           </entity-find-one>
+           <entity-find-one entity-name="TelecomNumber" value-field="destNumber">
+               <field-map field-name="contactMechId" from="routeSegment.destTelecomContactMechId"></field-map>
+           </entity-find-one>
+
+           <!--Searching Origin and Dest of Organization -->
+           <entity-find-one entity-name="Person" value-field="originPerson">
+               <field-map field-name="partyId" from="shipment.fromPartyId"></field-map>
+           </entity-find-one>
+           <entity-find-one entity-name="Person" value-field="destPerson">
+               <field-map field-name="partyId" from="shipment.toPartyId"></field-map>
+           </entity-find-one>
+
+           <!-- Searching Country and State/Province Code -->
+           <entity-find-one entity-name="Geo" value-field="originGeoStateProvinceData">
+               <field-map field-name="geoId" from="originPostalAddress.stateProvinceGeoId"/>
+               <select-field field-name="geoCodeAlpha2"/>
+           </entity-find-one>
+           <entity-find-one entity-name="Geo" value-field="originGeoCountryData">
+               <field-map field-name="geoId" from="originPostalAddress.countryGeoId"/>
+               <select-field field-name="geoCodeAlpha2"/>
+           </entity-find-one>
+           <entity-find-one entity-name="Geo" value-field="destGeoStateProvinceData">
+               <field-map field-name="geoId" from="destPostalAddress.stateProvinceGeoId"/>
+               <select-field field-name="geoCodeAlpha2"/>
+           </entity-find-one>
+           <entity-find-one entity-name="Geo" value-field="destGeoCountryData">
+               <field-map field-name="geoId" from="destPostalAddress.countryGeoId"/>
+               <select-field field-name="geoCodeAlpha2"/>
+           </entity-find-one>
+
+           <!-- Extracting ShipmentMethod/ServiceType details-->
+           <set field="shipmentMethodEnumId" from="shipmentMethodEnumId ?: routeSegment.shipmentMethodEnumId"/>
+           <if condition="!shipmentMethodEnumId">
+               <return type="danger" message="In get#ShippingLabel Service, no shipmentMethod available."/>
+           </if>
+
+           <!-- Address details for requestMap -->
+           <set field="saddress" from="[streetLines:[originPostalAddress.address1], city:originPostalAddress.city,
+                 stateOrProvinceCode:originGeoStateProvinceData.geoCodeAlpha2, postalCode:originPostalAddress.postalCode,
+                 countryCode:originGeoCountryData.geoCodeAlpha2]" type="NewMap"/>
+           <set field="scontact" from="[personName:originPerson.firstName, phoneNumber:destNumber.contactNumber,
+                 companyName:originOrganization.organizationName]" type="NewMap"/>
+           <set field="raddress" from="[streetLines:[destPostalAddress.address1, destPostalAddress.address2],
+                 city:destPostalAddress.city, stateOrProvinceCode:destGeoStateProvinceData.geoCodeAlpha2,
+                 postalCode:destPostalAddress.postalCode, countryCode:destGeoCountryData.geoCodeAlpha2]" type="NewMap"/>
+           <set field="rcontact" from="[personName:destPerson.firstName, phoneNumber:destNumber.contactNumber,
+                 companyName:destOrganization.organizationName]" type="NewMap"/>
+
+           <!-- Storing Sender and Receiver's Address -->
+           <set field='address_from' from="[contact:scontact,address:saddress]" type="NewMap"/>
+           <set field='address_to' from="[contact:rcontact,address:raddress]" type="NewMap"/>
+
+       </actions>
+    </service>
+    <service verb="make" noun="ShipmentPackageInfo">
         <in-parameters>
-            <parameter name="shipmentId" required="true"/>
-            <parameter name="shipmentRouteSegmentSeqId" required="true"/>
-            <parameter name="shippingGatewayConfigId" required="true"/>
+            <parameter name="packageRouteSeg" type="EntityValue" required="true"/>
+            <parameter name="routeSegment" type="EntityValue" required="true"/>
+            <parameter name="shipment" type="EntityValue" required="true"/>
+            <parameter name="address_from" type="Map" required="true"/>
+            <parameter name="address_to" type="Map" required="true"/>
+            <parameter name="shipmentMethodEnumId" required="true"/>
         </in-parameters>
         <out-parameters>
             <parameter name="labelRequestMap" type="Map"/>
         </out-parameters>
         <actions>
 
-            <!-- Searching ShipmentRouteSegment -->
-            <entity-find-one entity-name="ShipmentRouteSegment" value-field="shipmentRouteSegment">
-                <field-map field-name="shipmentRouteSegmentSeqId"/>
-                <field-map field-name="shipmentId"/>
-            </entity-find-one>
-            <if condition="!shipmentRouteSegment">
-                <return type="danger" message="In get#labelRequestMap service, shipmentRouteSegment not available."/>
-            </if>
-
-            <!--Searching Origin and Dest PostalAddress-->
-            <entity-find-one entity-name="PostalAddress" value-field="originPostalAddress">
-                <field-map field-name="contactMechId" from="shipmentRouteSegment.originPostalContactMechId"></field-map>
-            </entity-find-one>
-            <entity-find-one entity-name="PostalAddress" value-field="destPostalAddress">
-                <field-map field-name="contactMechId" from="shipmentRouteSegment.destPostalContactMechId"></field-map>
-            </entity-find-one>
-
-            <!-- Searching Country and State/Province Code -->
-            <entity-find-one entity-name="Geo" value-field="originGeoStateData">
-                <field-map field-name="geoId" from="originPostalAddress.stateProvinceGeoId"/>
-                <select-field field-name="geoCodeAlpha2"/>
-            </entity-find-one>
-            <entity-find-one entity-name="Geo" value-field="originGeoCountryData">
-                <field-map field-name="geoId" from="originPostalAddress.countryGeoId"/>
-                <select-field field-name="geoCodeAlpha2"/>
-            </entity-find-one>
-            <entity-find-one entity-name="Geo" value-field="destGeoStateData">
-                <field-map field-name="geoId" from="destPostalAddress.stateProvinceGeoId"/>
-                <select-field field-name="geoCodeAlpha2"/>
-            </entity-find-one>
-            <entity-find-one entity-name="Geo" value-field="destGeoCountryData">
-                <field-map field-name="geoId" from="destPostalAddress.countryGeoId"/>
-                <select-field field-name="geoCodeAlpha2"/>
-            </entity-find-one>
+            <set field="shipmentId" from="packageRouteSeg.shipmentId"/>
+            <set field="shipmentRouteSegmentSeqId" from="packageRouteSeg.shipmentRouteSegmentSeqId"/>
+            <set field="shipmentPackageSeqId" from="packageRouteSeg.shipmentPackageSeqId"/>
+            <set field="shippingGatewayConfigId" from="routeSegment.shippingGatewayConfigId"/>
 
             <!--Extracting Info For Labels -->
             <entity-find-one entity-name="ShippingGatewayOption" value-field="labelFormat">
@@ -97,28 +178,20 @@
                 <field-map field-name="optionEnumId" value="FedexLabelStockType"/>
             </entity-find-one>
 
-            <!-- Address details for requestMap -->
-            <set field="saddress" from="[streetLines:[originPostalAddress.address1], city:originPostalAddress.city,
-                 stateOrProvinceCode:originGeoStateData.geoCodeAlpha2, postalCode:originPostalAddress.postalCode,
-                 countryCode:originGeoCountryData.geoCodeAlpha2]" type="NewMap"/>
-            <set field="scontact" from="[personName:'SHIPPER NAME', phoneNumber:'1234566790',
-                 companyName:'Shipper Company Name']" type="NewMap"/>
-            <set field="raddress" from="[streetLines:[destPostalAddress.address1, destPostalAddress.address2],
-                 city:destPostalAddress.city, stateOrProvinceCode:destGeoStateData.geoCodeAlpha2,
-                 postalCode:destPostalAddress.postalCode, countryCode:destGeoCountryData.geoCodeAlpha2]" type="NewMap"/>
-            <set field="rcontact" from="[personName:'RECIPIENT NAME', phoneNumber:'1234567890',
-                 companyName:'Recipient Company Name']" type="NewMap"/>
+            <!-- Extracting BoxType -->
+            <entity-find-one entity-name="ShipmentPackage" value-field="shipmentPackage">
+                <field-map field-name="shipmentId" from="shipmentId"/>
+                <field-map field-name="shipmentPackageSeqId" from="shipmentPackageSeqId"/>
+            </entity-find-one>
 
             <!-- Collecting details for labelRequestMap -->
-            <set field='shipper' from="[contact:scontact,address:saddress]" type="NewMap"/>
-            <set field='recipients' from="[contact:rcontact,address:raddress]" type="NewMap"/>
             <set field="shippingChargesPayment" from="[paymentType:'SENDER']" type="NewMap"/>
             <set field="shipmentSpecialServices" from="[specialServiceTypes:['FEDEX_ONE_RATE']]" type="NewMap"/>
             <set field="labelSpecification" from="[imageType:labelImage.optionValue,
                  labelStockType:labelStock.optionValue, labelFormatType:labelFormat.optionValue]" type="NewMap"/>
             <set field="requestedPackageLineItems" from="[:]"/>
-            <set field="requestedShipment" from= "[shipper:shipper, recipients:[recipients], shipDatestamp:'2021-12-10',
-                 serviceType:'STANDARD_OVERNIGHT', packagingType:'FEDEX_SMALL_BOX', pickupType:'USE_SCHEDULED_PICKUP',
+            <set field="requestedShipment" from= "[shipper:address_from, recipients:[address_to], shipDatestamp:'2022-01-01',
+                 serviceType:shipmentMethodEnumId, packagingType:shipmentPackage.shipmentBoxTypeId, pickupType:'USE_SCHEDULED_PICKUP',
                  blockInsightVisibility:false, shippingChargesPayment:shippingChargesPayment,
                  shipmentSpecialServices:shipmentSpecialServices, labelSpecification:labelSpecification,
                  requestedPackageLineItems:[requestedPackageLineItems]]" type="NewMap"/>
@@ -131,7 +204,6 @@
             <!-- Creating labelRequestMap -->
             <set field="labelRequestMap" from="[labelResponseOptions:'URL_ONLY', requestedShipment:requestedShipment,
                  accountNumber:accountNumber]" type="NewMap"/>
-
         </actions>
     </service>
 </services>
