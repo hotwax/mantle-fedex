@@ -2,13 +2,8 @@
 <services xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
           xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/service-definition-2.1.xsd">
 
-   <service verb="request" noun="ShippingLabels">
-        <in-parameters>
-            <parameter name="shipmentId" required="true"/>
-            <parameter name="shipmentRouteSegmentSeqId" required="true"/>
-            <parameter name="shippingGatewayConfigId" required="true"/>
-            <parameter name="shipmentMethodEnumId"/>
-        </in-parameters>
+  <service verb="request" noun="ShippingLabels">
+        <implements service="mantle.shipment.CarrierServices.request#ShippingLabels"/>
         <out-parameters>
             <parameter name="responseMap"/>
         </out-parameters>
@@ -51,6 +46,11 @@
                     contentType:'application/json', requestMap:request.labelRequestMap,
                     apiTokenValue:apiTokenOpt.optionValue,xLocale:'en-US']"/>
                 <set field="responseMap" from="response.responseMap"/>
+                <set field="packageRouteSeg.baseAmount" from="responseMap.output.transactionShipments[0].pieceResponses[0].baseRateAmount"/>
+                <set field="packageRouteSeg.trackingCode" from="responseMap.output.transactionShipments[0].masterTrackingNumber"/>
+                <set field="packageRouteSeg.labelDate" from="responseMap.output.transactionShipments[0].pieceResponses[0].deliveryDatestamp"/>
+                <set field="packageRouteSeg.labelUrl" from="responseMap.output.transactionShipments[0].pieceResponses[0].packageDocuments[0].url"/>
+                <entity-update value-field="packageRouteSeg"/>
             </iterate>
 
         </actions>
@@ -189,7 +189,38 @@
             <set field="shipmentSpecialServices" from="[specialServiceTypes:['FEDEX_ONE_RATE']]" type="NewMap"/>
             <set field="labelSpecification" from="[imageType:labelImage.optionValue,
                  labelStockType:labelStock.optionValue, labelFormatType:labelFormat.optionValue]" type="NewMap"/>
-            <set field="requestedPackageLineItems" from="[:]"/>
+
+            <!-- Package details -->
+
+            <entity-find-one entity-name="mantle.shipment.ShipmentPackage" value-field="shipmentPackage"/>
+            <!-- dimensions -->
+            <entity-find-one entity-name="mantle.shipment.ShipmentBoxType" value-field="boxType">
+                <field-map field-name="shipmentBoxTypeId" from="shipmentPackage.shipmentBoxTypeId"/></entity-find-one>
+            <if condition="boxType == null"><message>Package has no box type, skipping</message><return/></if>
+            <if condition="!boxType.boxLength || !boxType.boxWidth || !boxType.boxHeight">
+                <message>Box type ${boxType.shipmentBoxTypeId} is missing dimensions (length, width, height) or dimensionUomId, s
+                    kipping package</message><return/>
+            </if>
+            <entity-find-one entity-name="moqui.basic.Uom" value-field="dimensionUom">
+                <field-map field-name="uomId" from="boxType.dimensionUomId ?: 'LEN_in'"/></entity-find-one>
+            <if condition="!(dimensionUom.abbreviation in ['in', 'cm'])">
+                <message>Package ${shipmentPackageSeqId} box type ${boxType.shipmentBoxTypeId} dimension unit is '${distance_unit}',
+                    must be one of: 'cm', 'in'; skipping package</message>
+                <return/>
+            </if>
+            <!-- weight -->
+            <entity-find-one entity-name="moqui.basic.Uom" value-field="weightUom">
+                <field-map field-name="uomId" from="shipmentPackage.weightUomId ?: 'WT_lb'"/></entity-find-one>
+            <if condition="!(weightUom.abbreviation in ['lb', 'kg'])">
+                <message>Package ${shipmentPackageSeqId} box type ${boxType.shipmentBoxTypeId} weight unit is '${mass_unit}',
+                    must be one of: 'lb', 'kg'; skipping package</message>
+                <return/>
+            </if>
+            <set field="weight" from="[units:weightUom.abbreviation=='kg'?'KG':'LB',value:shipmentPackage.weight]"/>
+            <set field="dimensions" from="[length:boxType.boxLength,width:boxType.boxWidth,height:boxType.boxHeight,
+            units:dimensionUom.abbreviation=='in'?'IN':'CM']"/>
+            <set field="requestedPackageLineItems" from="[weight:weight,dimensions:dimensions]" type="NewMap"/>
+            <set field="requestedPackageLineItems" from="[:]" type="NewMap"/>
             <set field="requestedShipment" from= "[shipper:address_from, recipients:[address_to], shipDatestamp:'2022-01-01',
                  serviceType:shipmentMethodEnumId, packagingType:shipmentPackage.shipmentBoxTypeId, pickupType:'USE_SCHEDULED_PICKUP',
                  blockInsightVisibility:false, shippingChargesPayment:shippingChargesPayment,
