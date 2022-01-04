@@ -57,10 +57,6 @@
                 </if>
             </else>
             </if>
-            <!-- Updating trustLevelEnumId value -->
-            <entity-find-one entity-name="mantle.party.contact.ContactMech" value-field="origContactMech"/>
-            <set field="origContactMech.trustLevelEnumId" from="trustLevelEnumId"/>
-            <entity-update value-field="origContactMech"/>
 
             <log message="Fedex validate address ${contactMechId} trust ${trustLevelEnumId}}"/>
             <!-- Updating trustLevelEnumId value -->
