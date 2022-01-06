@@ -1,4 +1,4 @@
-# disclamer
+# Disclamer
 develop branch is not recomanded for any kind of use 
 
 # mantle-fedex
