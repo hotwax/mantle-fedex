@@ -46,10 +46,9 @@
                     contentType:'application/json', requestMap:request.labelRequestMap,
                     apiTokenValue:apiTokenOpt.optionValue,xLocale:'en-US']"/>
                 <set field="responseMap" from="response.responseMap"/>
-                <set field="packageRouteSeg.baseAmount" from="responseMap.output.transactionShipments[0].pieceResponses[0].baseRateAmount"/>
-                <set field="packageRouteSeg.trackingCode" from="responseMap.output.transactionShipments[0].masterTrackingNumber"/>
+                <set field="packageRouteSeg.trackingCode" from="responseMap.output.transactionShipments[0].pieceResponses[0].trackingNumber"/>
                 <set field="packageRouteSeg.labelDate" from="responseMap.output.transactionShipments[0].pieceResponses[0].deliveryDatestamp"/>
-                <set field="packageRouteSeg.labelUrl" from="responseMap.output.transactionShipments[0].pieceResponses[0].packageDocuments[0].url"/>
+                <set field="packageRouteSeg.labelImage" from="responseMap.output.transactionShipments[0].pieceResponses[0].packageDocuments[0].encodedLabel"/>
                 <entity-update value-field="packageRouteSeg"/>
             </iterate>
 
@@ -223,9 +222,8 @@
             <set field="requestedPackageLineItems" from="[:]" type="NewMap"/>
             <set field="requestedShipment" from= "[shipper:address_from, recipients:[address_to], shipDatestamp:'2022-01-01',
                  serviceType:shipmentMethodEnumId, packagingType:shipmentPackage.shipmentBoxTypeId, pickupType:'USE_SCHEDULED_PICKUP',
-                 blockInsightVisibility:false, shippingChargesPayment:shippingChargesPayment,
-                 shipmentSpecialServices:shipmentSpecialServices, labelSpecification:labelSpecification,
-                 requestedPackageLineItems:[requestedPackageLineItems]]" type="NewMap"/>
+                 shippingChargesPayment:shippingChargesPayment, shipmentSpecialServices:shipmentSpecialServices,
+                 labelSpecification:labelSpecification, requestedPackageLineItems:[requestedPackageLineItems]]" type="NewMap"/>
 
             <entity-find-one entity-name="ShipmentGatewayFedex" value-field="fedexGtwy">
                 <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
@@ -233,8 +231,8 @@
             <set field="accountNumber" from="[value:fedexGtwy.accountNumber]" type="NewMap"/>
 
             <!-- Creating labelRequestMap -->
-            <set field="labelRequestMap" from="[labelResponseOptions:'URL_ONLY', requestedShipment:requestedShipment,
-                 accountNumber:accountNumber]" type="NewMap"/>
+            <set field="labelRequestMap" from="[labelResponseOptions:'LABEL', requestedShipment:requestedShipment,
+                accountNumber:accountNumber]" type="NewMap"/>
         </actions>
     </service>
 </services>
