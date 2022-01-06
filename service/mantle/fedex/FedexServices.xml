@@ -32,26 +32,26 @@
 
             <!-- Create ShipmentInfo Details -->
             <service-call name="mantle.fedex.FedexServices.make#ShipmentInfo" in-map="context" out-map="context"/>
-
-            <iterate list="packageRouteSegList" entry="packageRouteSeg">
-                <!-- Calling FedEx service for everyPackage -->
-                <service-call name="mantle.fedex.FedexServices.make#ShipmentPackageInfo" out-map="request"
-                    in-map="[shipment:shipment, routeSegment:routeSegment, packageRouteSeg:packageRouteSeg,
-                    address_from:address_from, address_to:address_to, shipmentMethodEnumId:shipmentMethodEnumId]"/>
-                <if condition="!request.labelRequestMap"><return/></if>
-
-                <!-- Setting Connection With Fedex -->
-                <service-call name="mantle.fedex.FedexServices.send#FedexRequest" out-map="response"
-                    in-map="[shippingGatewayConfigId:shippingGatewayConfigId, method:'POST',path:'ship/v1/shipments',
-                    contentType:'application/json', requestMap:request.labelRequestMap,
-                    apiTokenValue:apiTokenOpt.optionValue,xLocale:'en-US']"/>
-                <set field="responseMap" from="response.responseMap"/>
-                <set field="packageRouteSeg.trackingCode" from="responseMap.output.transactionShipments[0].pieceResponses[0].trackingNumber"/>
-                <set field="packageRouteSeg.labelDate" from="responseMap.output.transactionShipments[0].pieceResponses[0].deliveryDatestamp"/>
-                <set field="packageRouteSeg.labelImage" from="responseMap.output.transactionShipments[0].pieceResponses[0].packageDocuments[0].encodedLabel"/>
+            <!-- Calling FedEx service for allPackages -->
+            <service-call name="mantle.fedex.FedexServices.make#ShipmentPackageInfo" out-map="request"
+                in-map="[shipment:shipment, routeSegment:routeSegment, packageRouteSegList:packageRouteSegList,
+                address_from:address_from, address_to:address_to, shipmentMethodEnumId:shipmentMethodEnumId]"/>
+            <if condition="!request.labelRequestMap"><return/></if>
+            <!-- Setting Connection With Fedex -->
+            <service-call name="mantle.fedex.FedexServices.send#FedexRequest" out-map="response"
+                in-map="[shippingGatewayConfigId:shippingGatewayConfigId, method:'POST',path:'ship/v1/shipments',
+                contentType:'application/json', requestMap:request.labelRequestMap,
+                apiTokenValue:apiTokenOpt.optionValue,xLocale:'en-US']"/>
+            <set field="responseMap" from="response.responseMap"/>
+            <set field="iterator" type="Integer" value="0"/>
+           <!-- <iterate list="packageRouteSegList" entry="packageRouteSeg">
+                <set field="packageRouteSeg.trackingCode" from="responseMap.output.transactionShipments[0].pieceResponses[iterator].trackingNumber"/>
+                <set field="packageRouteSeg.labelDate" from="responseMap.output.transactionShipments[0].pieceResponses[iterator].deliveryDatestamp"/>
+                <set field="packageRouteSeg.labelImage" from="responseMap.output.transactionShipments[0].pieceResponses[iterator].packageDocuments[iterator].encodedLabel"/>
                 <entity-update value-field="packageRouteSeg"/>
+                <script>iterator=iterator+1</script>
             </iterate>
-
+-->
         </actions>
     </service>
     <service verb="make" noun="ShipmentInfo">
@@ -146,7 +146,7 @@
     </service>
     <service verb="make" noun="ShipmentPackageInfo">
         <in-parameters>
-            <parameter name="packageRouteSeg" type="EntityValue" required="true"/>
+            <parameter name="packageRouteSegList" type="List" required="true"/>
             <parameter name="routeSegment" type="EntityValue" required="true"/>
             <parameter name="shipment" type="EntityValue" required="true"/>
             <parameter name="address_from" type="Map" required="true"/>
@@ -158,11 +158,7 @@
         </out-parameters>
         <actions>
 
-            <set field="shipmentId" from="packageRouteSeg.shipmentId"/>
-            <set field="shipmentRouteSegmentSeqId" from="packageRouteSeg.shipmentRouteSegmentSeqId"/>
-            <set field="shipmentPackageSeqId" from="packageRouteSeg.shipmentPackageSeqId"/>
             <set field="shippingGatewayConfigId" from="routeSegment.shippingGatewayConfigId"/>
-
             <!--Extracting Info For Labels -->
             <entity-find-one entity-name="ShippingGatewayOption" value-field="labelFormat">
                 <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
@@ -177,49 +173,54 @@
                 <field-map field-name="optionEnumId" value="FedexLabelStockType"/>
             </entity-find-one>
 
-            <!-- Extracting BoxType -->
-            <entity-find-one entity-name="ShipmentPackage" value-field="shipmentPackage">
-                <field-map field-name="shipmentId" from="shipmentId"/>
-                <field-map field-name="shipmentPackageSeqId" from="shipmentPackageSeqId"/>
-            </entity-find-one>
-
             <!-- Collecting details for labelRequestMap -->
             <set field="shippingChargesPayment" from="[paymentType:'SENDER']" type="NewMap"/>
             <set field="shipmentSpecialServices" from="[specialServiceTypes:['FEDEX_ONE_RATE']]" type="NewMap"/>
             <set field="labelSpecification" from="[imageType:labelImage.optionValue,
                  labelStockType:labelStock.optionValue, labelFormatType:labelFormat.optionValue]" type="NewMap"/>
 
-            <!-- Package details -->
-
-            <entity-find-one entity-name="mantle.shipment.ShipmentPackage" value-field="shipmentPackage"/>
-            <!-- dimensions -->
-            <entity-find-one entity-name="mantle.shipment.ShipmentBoxType" value-field="boxType">
-                <field-map field-name="shipmentBoxTypeId" from="shipmentPackage.shipmentBoxTypeId"/></entity-find-one>
-            <if condition="boxType == null"><message>Package has no box type, skipping</message><return/></if>
-            <if condition="!boxType.boxLength || !boxType.boxWidth || !boxType.boxHeight">
-                <message>Box type ${boxType.shipmentBoxTypeId} is missing dimensions (length, width, height) or dimensionUomId, s
-                    kipping package</message><return/>
-            </if>
-            <entity-find-one entity-name="moqui.basic.Uom" value-field="dimensionUom">
-                <field-map field-name="uomId" from="boxType.dimensionUomId ?: 'LEN_in'"/></entity-find-one>
-            <if condition="!(dimensionUom.abbreviation in ['in', 'cm'])">
-                <message>Package ${shipmentPackageSeqId} box type ${boxType.shipmentBoxTypeId} dimension unit is '${distance_unit}',
-                    must be one of: 'cm', 'in'; skipping package</message>
-                <return/>
-            </if>
-            <!-- weight -->
-            <entity-find-one entity-name="moqui.basic.Uom" value-field="weightUom">
-                <field-map field-name="uomId" from="shipmentPackage.weightUomId ?: 'WT_lb'"/></entity-find-one>
-            <if condition="!(weightUom.abbreviation in ['lb', 'kg'])">
-                <message>Package ${shipmentPackageSeqId} box type ${boxType.shipmentBoxTypeId} weight unit is '${mass_unit}',
-                    must be one of: 'lb', 'kg'; skipping package</message>
-                <return/>
-            </if>
-            <set field="weight" from="[units:weightUom.abbreviation=='kg'?'KG':'LB',value:shipmentPackage.weight]"/>
-            <set field="dimensions" from="[length:boxType.boxLength,width:boxType.boxWidth,height:boxType.boxHeight,
-            units:dimensionUom.abbreviation=='in'?'IN':'CM']"/>
-            <set field="requestedPackageLineItems" from="[weight:weight,dimensions:dimensions]" type="NewMap"/>
-            <set field="requestedPackageLineItems" from="[:]" type="NewMap"/>
+            <!-- Calling FedEx service for everyPackage -->
+            <set field="requestedPackageLineItems" from="[:]"/>
+            <iterate list="packageRouteSegList" entry="packageRouteSeg">
+                <!-- Package details -->
+                <set field="shipmentId" from="packageRouteSeg.shipmentId"/>
+                <set field="shipmentRouteSegmentSeqId" from="packageRouteSeg.shipmentRouteSegmentSeqId"/>
+                <set field="shipmentPackageSeqId" from="packageRouteSeg.shipmentPackageSeqId"/>
+                <!-- Extracting BoxType -->
+                <entity-find-one entity-name="ShipmentPackage" value-field="shipmentPackage">
+                    <field-map field-name="shipmentId" from="shipmentId"/>
+                    <field-map field-name="shipmentPackageSeqId" from="shipmentPackageSeqId"/>
+                </entity-find-one>
+                <entity-find-one entity-name="mantle.shipment.ShipmentPackage" value-field="shipmentPackage"/>
+                <!-- dimensions -->
+                <entity-find-one entity-name="mantle.shipment.ShipmentBoxType" value-field="boxType">
+                    <field-map field-name="shipmentBoxTypeId" from="shipmentPackage.shipmentBoxTypeId"/></entity-find-one>
+                <if condition="boxType == null"><message>Package has no box type, skipping</message><return/></if>
+                <if condition="!boxType.boxLength || !boxType.boxWidth || !boxType.boxHeight">
+                    <message>Box type ${boxType.shipmentBoxTypeId} is missing dimensions (length, width, height) or dimensionUomId, s
+                        kipping package</message><return/>
+                </if>
+                <entity-find-one entity-name="moqui.basic.Uom" value-field="dimensionUom">
+                    <field-map field-name="uomId" from="boxType.dimensionUomId ?: 'LEN_in'"/></entity-find-one>
+                <if condition="!(dimensionUom.abbreviation in ['in', 'cm'])">
+                    <message>Package ${shipmentPackageSeqId} box type ${boxType.shipmentBoxTypeId} dimension unit is '${distance_unit}',
+                        must be one of: 'cm', 'in'; skipping package</message>
+                    <return/>
+                </if>
+                <!-- weight -->
+                <entity-find-one entity-name="moqui.basic.Uom" value-field="weightUom">
+                    <field-map field-name="uomId" from="shipmentPackage.weightUomId ?: 'WT_lb'"/></entity-find-one>
+                <if condition="!(weightUom.abbreviation in ['lb', 'kg'])">
+                    <message>Package ${shipmentPackageSeqId} box type ${boxType.shipmentBoxTypeId} weight unit is '${mass_unit}',
+                        must be one of: 'lb', 'kg'; skipping package</message>
+                    <return/>
+                </if>
+                <set field="weight" from="[units:weightUom.abbreviation=='kg'?'KG':'LB',value:shipmentPackage.weight]"/>
+                <set field="dimensions" from="[length:boxType.boxLength,width:boxType.boxWidth,height:boxType.boxHeight,
+                units:dimensionUom.abbreviation=='in'?'IN':'CM']"/>
+                <set field="requestedPackage" from="[weight:weight,dimensions:dimensions]" type="NewMap"/>
+                <set field="requestedPackageLineItems" from="requestedPackageLineItems + requestedPackage"/>
+            </iterate>
             <set field="requestedShipment" from= "[shipper:address_from, recipients:[address_to], shipDatestamp:'2022-01-01',
                  serviceType:shipmentMethodEnumId, packagingType:shipmentPackage.shipmentBoxTypeId, pickupType:'USE_SCHEDULED_PICKUP',
                  shippingChargesPayment:shippingChargesPayment, shipmentSpecialServices:shipmentSpecialServices,
