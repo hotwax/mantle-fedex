@@ -6,6 +6,7 @@
         <implements service="mantle.shipment.CarrierServices.request#ShippingLabels"/>
         <out-parameters>
             <parameter name="responseMap"/>
+            <parameter name="labelRequestMap"/>
         </out-parameters>
         <actions>
             <!-- Searching FedexApiToken -->
@@ -37,6 +38,7 @@
                 in-map="[shipment:shipment, routeSegment:routeSegment, packageRouteSegList:packageRouteSegList,
                 address_from:address_from, address_to:address_to, shipmentMethodEnumId:shipmentMethodEnumId]"/>
             <if condition="!request.labelRequestMap"><return/></if>
+            <set field="labelRequestMap" from="request.labelRequestMap"/>
             <!-- Setting Connection With Fedex -->
             <service-call name="mantle.fedex.FedexServices.send#FedexRequest" out-map="response"
                 in-map="[shippingGatewayConfigId:shippingGatewayConfigId, method:'POST',path:'ship/v1/shipments',
@@ -44,14 +46,13 @@
                 apiTokenValue:apiTokenOpt.optionValue,xLocale:'en-US']"/>
             <set field="responseMap" from="response.responseMap"/>
             <set field="iterator" type="Integer" value="0"/>
-           <!-- <iterate list="packageRouteSegList" entry="packageRouteSeg">
+            <iterate list="packageRouteSegList" entry="packageRouteSeg">
                 <set field="packageRouteSeg.trackingCode" from="responseMap.output.transactionShipments[0].pieceResponses[iterator].trackingNumber"/>
                 <set field="packageRouteSeg.labelDate" from="responseMap.output.transactionShipments[0].pieceResponses[iterator].deliveryDatestamp"/>
-                <set field="packageRouteSeg.labelImage" from="responseMap.output.transactionShipments[0].pieceResponses[iterator].packageDocuments[iterator].encodedLabel"/>
+                <set field="packageRouteSeg.labelImage" from="responseMap.output.transactionShipments[0].pieceResponses[iterator].packageDocuments[0].encodedLabel"/>
                 <entity-update value-field="packageRouteSeg"/>
                 <script>iterator=iterator+1</script>
             </iterate>
--->
         </actions>
     </service>
     <service verb="make" noun="ShipmentInfo">
@@ -175,12 +176,11 @@
 
             <!-- Collecting details for labelRequestMap -->
             <set field="shippingChargesPayment" from="[paymentType:'SENDER']" type="NewMap"/>
-            <set field="shipmentSpecialServices" from="[specialServiceTypes:['FEDEX_ONE_RATE']]" type="NewMap"/>
             <set field="labelSpecification" from="[imageType:labelImage.optionValue,
                  labelStockType:labelStock.optionValue, labelFormatType:labelFormat.optionValue]" type="NewMap"/>
 
             <!-- Calling FedEx service for everyPackage -->
-            <set field="requestedPackageLineItems" from="[:]"/>
+            <set field="requestedPackageLineItems" from="[]"/>
             <iterate list="packageRouteSegList" entry="packageRouteSeg">
                 <!-- Package details -->
                 <set field="shipmentId" from="packageRouteSeg.shipmentId"/>
@@ -219,12 +219,12 @@
                 <set field="dimensions" from="[length:boxType.boxLength,width:boxType.boxWidth,height:boxType.boxHeight,
                 units:dimensionUom.abbreviation=='in'?'IN':'CM']"/>
                 <set field="requestedPackage" from="[weight:weight,dimensions:dimensions]" type="NewMap"/>
-                <set field="requestedPackageLineItems" from="requestedPackageLineItems + requestedPackage"/>
+                <script>requestedPackageLineItems.add(requestedPackage)</script>
             </iterate>
-            <set field="requestedShipment" from= "[shipper:address_from, recipients:[address_to], shipDatestamp:'2022-01-01',
-                 serviceType:shipmentMethodEnumId, packagingType:shipmentPackage.shipmentBoxTypeId, pickupType:'USE_SCHEDULED_PICKUP',
-                 shippingChargesPayment:shippingChargesPayment, shipmentSpecialServices:shipmentSpecialServices,
-                 labelSpecification:labelSpecification, requestedPackageLineItems:[requestedPackageLineItems]]" type="NewMap"/>
+            <set field="requestedShipment" from= "[shipper:address_from, recipients:[address_to],
+                serviceType:shipmentMethodEnumId, packagingType:shipmentPackage.shipmentBoxTypeId, pickupType:'USE_SCHEDULED_PICKUP',
+                shippingChargesPayment:shippingChargesPayment,labelSpecification:labelSpecification,
+                requestedPackageLineItems:requestedPackageLineItems]" type="NewMap"/>
 
             <entity-find-one entity-name="ShipmentGatewayFedex" value-field="fedexGtwy">
                 <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
