@@ -1,15 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <entities xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/entity-definition-2.1.xsd">
 
-    <!--Default Authentication Entity for storing Credentials -->
-    <entity entity-name="ShipmentGatewayFedex" package="mantle.fedex">
-        <!--tokenId will always remain one-->
-        <field name="shippingGatewayConfigId" type="id" is-pk="true"/>
-        <field name="grantType" type="text-long" default="client_credentials"/>
-        <field name="clientId" type="text-long" encrypt="true"><description>Fedex clientId (API Key)</description></field>
-        <field name="clientSecret" type="text-long" encrypt="true"><description>Fedex clientSecret (Secret Key)</description></field>
-        <field name="accountNumber" type="text-short" encrypt="true"><description>Fedex accountNumber (Shipment Account Number)
-            </description></field>
-        <field name="connectUrl" type="text-medium" encrypt="true"/>
-    </entity>
 </entities>
