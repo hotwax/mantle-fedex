@@ -48,18 +48,25 @@
                 contentType:'application/json', requestMap:requestMap, apiTokenValue:apiTokenOpt.optionValue]"/>
 
             <!-- Verifying Correctness of Address -->
-            <set field="statusCodes" from="responseMap?responseMap.output.resolvedAddresses[0].attributes:null"/>
+            <set field="responseMap" from="response.responseMap"/>
+            <set field="resolvedAddresses" from="responseMap?responseMap.output.resolvedAddresses[0]:null"/>
+            <set field="statusCodes" from="resolvedAddresses?resolvedAddresses.attributes:null"/>
             <if condition="responseMap==null || responseMap == '' || statusCodes.InterpolatedStreetAddress=='true'
-                || statusCodes.DPV=='false' ||  statusCodes.AddressType=='false' || statusCodes.Resolved=='false' ">
+                || statusCodes.DPV=='false' || statusCodes.AddressType!='STANDARDIZED' || statusCodes.Resolved=='false' ">
                 <then><set field="trustLevelEnumId" value="CmtlInvalid"/></then>
                 <else><set field="trustLevelEnumId" value="CmtlValid"/></else>
             </if>
-
             <!-- Updating trustLevelEnumId value -->
             <log message="Fedex validate address ${contactMechId} trust ${trustLevelEnumId}}"/>
             <entity-find-one entity-name="mantle.party.contact.ContactMech" value-field="contactMech"/>
             <set field="contactMech.trustLevelEnumId" from="trustLevelEnumId"/>
             <entity-update value-field="contactMech"/>
+
+            <!-- Error Handling -->
+            <set field="errorCode" from="resolvedAddresses.customerMessages[0]?resolvedAddresses.customerMessages[0].code:null"/>
+            <set field="errorMessage" from="resolvedAddresses.customerMessages[0]?resolvedAddresses.customerMessages[0].message:null"/>
+            <script>ec.message.addMessage(errorCode);</script>
+            <script>ec.message.addMessage(errorMessage);</script>
         </actions>
     </service>
 
@@ -89,18 +96,12 @@
                 <field-map field-name="geoId" from="postalAddress.stateProvinceGeoId"/>
                 <select-field field-name="geoCodeAlpha2"/>
             </entity-find-one>
-            <if condition="!geoStateProvinceData">
-                <return type="danger" message="In get#AddressMap service, state/provice data not found."/>
-            </if>
 
             <!-- Searching Country Code -->
             <entity-find-one entity-name="Geo" value-field="geoCountryData">
                 <field-map field-name="geoId" from="postalAddress.countryGeoId"/>
                 <select-field field-name="geoCodeAlpha2"/>
             </entity-find-one>
-            <if condition="!geoCountryData">
-                <return type="danger" message="In get#AddressMap service, country data not found."/>
-            </if>
 
             <!--Searching Organization -->
             <entity-find-one entity-name="Organization" value-field="organization">
@@ -125,13 +126,13 @@
                  companyName:companyName]" type="NewMap"/>
 
             <!-- Checking Required Details -->
-            <if condition="!postalAddress.city || !geoCountryData.geoCodeAlpha2 ||!postalAddress.address1">
+            <if condition="!postalAddress.city || !geoCountryData || !geoCountryData.geoCodeAlpha2 ||!postalAddress.address1">
                 <return type="danger" message="Address is not Complete"/>
             </if>
 
             <!-- Creating AddressMap -->
             <set field="addressMap" from="streetLines:[postalAddress.address1, postalAddress.address2],
-                city:postalAddress.city,stateOrProvinceCode:geoStateProvinceData.geoCodeAlpha2,
+                city:postalAddress.city,stateOrProvinceCode:geoStateProvinceData?geoStateProvinceData.geoCodeAlpha2:null,
                 countryCode:geoCountryData.geoCodeAlpha2,postalCode:postalAddress.postalCode" type="NewMap"/>
 
         </actions>
