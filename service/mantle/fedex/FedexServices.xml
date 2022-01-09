@@ -102,17 +102,32 @@
                     contentType:'application/json', requestMap:request.orderRequestMap,
                     apiTokenValue:apiTokenOpt.optionValue, xLocale:'en-US']"/>
 
-                <!-- Creating rateServiceMap which is map of {serviceName, serviceCharge} -->
+                <!-- Error Handling -->
                 <set field="responseMap" from="response.responseMap"/>
+                <if condition="!responseMap">
+                    <return type="danger" message="Response not received on calling get#ShippingLabel service"></return>
+                </if>
+                <if condition="responseMap.output.alerts">
+                    <iterate list="responseMap.output.alerts" entry="alert">
+                        <script> ec.message.addMessage("OrderRate Service error${alert.code} ${alert.alertType}: ${alert.message}")</script>
+                    </iterate>
+                </if>
+-->
+                <!-- Creating rateServiceMap which is map of {serviceName, serviceCharge} -->
                 <set field="orderShippingRates" from="[]"/>
                 <iterate list="responseMap.output.rateReplyDetails" entry="rateServices">
                     <iterate list="rateServices.ratedShipmentDetails" entry="ratedShipmentDetails">
                         <set field="serviceCharge" from="ratedShipmentDetails.totalNetFedExCharge"/>
                     </iterate>
+                    <set field="alertMessages" from="[]"/>
+                    <iterate list="rateServices.customerMessages" entry="alerts">
+                        <script>alertMessages.add("ALERT- "+alerts.code+": "+alerts.message)</script>
+                    </iterate>
                     <set field="rateServiceMap"
-                         from="[serviceName:rateServices.serviceName, serviceCharge:serviceCharge]" type="NewMap"/>
+                         from="[serviceName:rateServices.serviceName, serviceCharge:serviceCharge, alertMessages: alertMessages]" type="NewMap"/>
                     <script> orderShippingRates.add(rateServiceMap) </script>
                 </iterate>
+
             </iterate>
         </actions>
     </service>
