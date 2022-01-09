@@ -40,11 +40,12 @@
                     restClient.jsonObject(requestMap)
                 }
                 RestClient.RestResponse restResponse = restClient.call()
-                if (restResponse.statusCode &lt; 200 || restResponse.statusCode &gt; 300){
-                    String errMsg = restResponse.text()
-                    ec.logger.error("Fedex error response (${restResponse.statusCode}): ${errMsg}")
+                if (restResponse.statusCode != 200){
+                    errorResponse = restResponse.jsonObject()
                     ec.message.addMessage("Fedex API error")
-                    ec.message.addMessage(errMsg)
+                    errorResponse.errors.each{ alert->
+                       ec.message.addMessage("Fedex error(${restResponse.statusCode}) - ${alert.code}: ${alert.message}")
+                    }
                     return
                 }
                 responseMap = restResponse.jsonObject()
