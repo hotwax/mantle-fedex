@@ -44,8 +44,17 @@
                 contentType:'application/json', requestMap:request.labelRequestMap,
                 apiTokenValue:apiTokenOpt.optionValue, xLocale:'en-US']"/>
 
-            <!-- Storing eachPackage's trackingCode, labelDate and labelImage in packageRouteSeg -->
             <set field="responseMap" from="response.responseMap"/>
+            <if condition="!responseMap">
+                <return type="danger" message="Response not received on calling get#ShippingLabel service"></return>
+            </if>
+            <if condition="responseMap.output.transactionShipments.alerts">
+                <iterate list="responseMap.output.transactionShipments.alerts" entry="alert">
+                    <script> ec.message.addMessage("Label Service error(${alert.alertType}) - ${alert.code}: ${alert.message}")</script>
+                </iterate>
+            </if>
+
+            <!-- Storing eachPackage's trackingCode, labelDate and labelImage in packageRouteSeg -->
             <set field="iterator" type="Integer" value="0"/>
             <iterate list="packageRouteSegList" entry="packageRouteSeg">
                 <set field="packageRouteSeg.trackingCode"
@@ -98,7 +107,6 @@
             <if condition="!addressResponse.addressMap"><return/> </if>
             <set field="receiverAddress" from="addressResponse.addressMap" type="NewMap"/>
             <set field="receiverContact" from="addressResponse.contactMap" type="NewMap"/>
-
 
             <!--Extracting LabelFormatType -->
             <entity-find-one entity-name="ShippingGatewayOption" value-field="labelFormat">
