@@ -13,8 +13,8 @@
                 <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
                 <field-map field-name="optionEnumId" value="FedexApiToken"/>
             </entity-find-one>
-            <if condition="!apiTokenOpt.optionValue">
-                <return type="warning" message=" ${shippingGatewayConfigId} has no FedexApiToken, not getting rates"/>
+            <if condition="!apiTokenOpt">
+                <return type="warning" message=" ${shippingGatewayConfigId} has no FedexApiToken, not getting label"/>
             </if>
 
             <!-- Fetching Shipment Entity -->
@@ -48,9 +48,9 @@
             <if condition="!responseMap">
                 <return type="danger" message="Response not received on calling get#ShippingLabel service"></return>
             </if>
-            <if condition="responseMap.output.transactionShipments.alerts">
+            <if condition="responseMap.output.transactionShipments.alerts &amp;&amp; responseMap.output.transactionShipments.alerts[0]">
                 <iterate list="responseMap.output.transactionShipments.alerts" entry="alert">
-                    <script> ec.message.addMessage("Label Service error(${alert.alertType}) - ${alert.code}: ${alert.message}")</script>
+                    <message type="danger">Fedex error(${alert.alertType}) - ${alert.code}: ${alert.message}</message>
                 </iterate>
             </if>
 
@@ -97,16 +97,16 @@
                 in-map="[postalContactMechId:routeSegment.originPostalContactMechId,
                 telecomContactMechId:routeSegment.originTelecomContactMechId, partyId:shipment.fromPartyId]"/>
             <if condition="!addressResponse.addressMap"><return/></if>
-            <set field="senderAddress" from="addressResponse.addressMap" type="NewMap"/>
-            <set field="senderContact" from="addressResponse.contactMap" type="NewMap"/>
+            <set field="senderAddress" from="addressResponse.addressMap.address" type="NewMap"/>
+            <set field="senderContact" from="addressResponse.addressMap.contact" type="NewMap"/>
 
             <!-- Receiver's Address and Contact Details-->
             <service-call name="mantle.fedex.FedexServices.get#AddressMap" out-map="addressResponse"
                  in-map="[postalContactMechId:routeSegment.destPostalContactMechId,
                  telecomContactMechId:routeSegment.destTelecomContactMechId, partyId:shipment.toPartyId]"/>
             <if condition="!addressResponse.addressMap"><return/> </if>
-            <set field="receiverAddress" from="addressResponse.addressMap" type="NewMap"/>
-            <set field="receiverContact" from="addressResponse.contactMap" type="NewMap"/>
+            <set field="receiverAddress" from="addressResponse.addressMap.address" type="NewMap"/>
+            <set field="receiverContact" from="addressResponse.addressMap.contact" type="NewMap"/>
 
             <!--Extracting LabelFormatType -->
             <entity-find-one entity-name="ShippingGatewayOption" value-field="labelFormat">
