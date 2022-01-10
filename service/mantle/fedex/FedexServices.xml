@@ -53,7 +53,7 @@
                 <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
                 <field-map field-name="optionEnumId" value="FedexApiToken"/>
             </entity-find-one>
-            <if condition="!apiTokenOpt.optionValue">
+            <if condition="!apiTokenOpt">
                 <return type="warning" message="Shipping gateway ${shippingGatewayConfigId} has no FedexApiToken, not getting rates"/>
             </if>
 
@@ -107,9 +107,9 @@
                 <if condition="!responseMap">
                     <return type="danger" message="Response not received on calling get#ShippingLabel service"></return>
                 </if>
-                <if condition="responseMap.output.alerts">
+                <if condition="responseMap.output.alerts &amp;&amp; responseMap.output.alerts[0]">
                     <iterate list="responseMap.output.alerts" entry="alert">
-                        <script> ec.message.addMessage("OrderRate Service error${alert.code} ${alert.alertType}: ${alert.message}")</script>
+                        <message type="danger">Fedex error${alert.code} ${alert.alertType}: ${alert.message}</message>
                     </iterate>
                 </if>
 -->
@@ -220,13 +220,13 @@
             <service-call name="mantle.fedex.FedexServices.get#AddressMap" out-map="addressResponse"
                  in-map="[postalContactMechId:facOriginOut.postalContactMechId]"/>
             <if condition="!addressResponse.addressMap"><return/></if>
-            <set field='shipper' from="[address:addressResponse.addressMap]" type="NewMap"/>
+            <set field='shipper' from="[address:addressResponse.addressMap.address]" type="NewMap"/>
 
             <!-- Receiver's Address and Contact Details-->
             <service-call name="mantle.fedex.FedexServices.get#AddressMap" out-map="addressResponse"
                  in-map="[postalContactMechId:postalContactMechId]"/>
-            <if condition="!addressResponse.addressMap"><return/></if>
-            <set field='recipient' from="[address:addressResponse.addressMap]" type="NewMap"/>
+            <if condition="!addressResponse.addressMap.address"><return/></if>
+            <set field='recipient' from="[address:addressResponse.addressMap.address]" type="NewMap"/>
 
             <!-- Adding every Package's weight and dimension in requestedPackageLineItems -->
             <set field="requestedPackageLineItems" from="[]"/>
