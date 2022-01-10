@@ -32,7 +32,7 @@
                 <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
                 <field-map field-name="optionEnumId" value="FedexApiToken"/>
             </entity-find-one>
-            <if condition="!apiTokenOpt.optionValue">
+            <if condition="!apiTokenOpt">
                 <return type="warning" message=" ${shippingGatewayConfigId} has no FedexApiToken, not validating address"/>
             </if>
 
@@ -40,7 +40,7 @@
             <service-call name="mantle.fedex.FedexServices.get#AddressMap" in-map="[postalContactMechId:contactMechId]"
                 out-map="addressResponse"/>
             <if condition="!addressResponse.addressMap"><return/></if>
-            <set field="requestMap" from="[addressesToValidate:[[address:addressResponse.addressMap]]]" type="NewMap"/>
+            <set field="requestMap" from="[addressesToValidate:[[address:addressResponse.addressMap.address]]]" type="NewMap"/>
 
             <!-- Setting Connection With Fedex -->
             <service-call name="mantle.fedex.FedexServices.send#FedexRequest" out-map="response"
@@ -63,10 +63,17 @@
             <entity-update value-field="contactMech"/>
 
             <!-- Error Handling -->
-            <set field="errorCode" from="resolvedAddresses.customerMessages[0]?resolvedAddresses.customerMessages[0].code:null"/>
-            <set field="errorMessage" from="resolvedAddresses.customerMessages[0]?resolvedAddresses.customerMessages[0].message:null"/>
-            <script>ec.message.addMessage(errorCode);</script>
-            <script>ec.message.addMessage(errorMessage);</script>
+            <if condition="resolvedAddresses.customerMessages &amp;&amp; resolvedAddresses.customerMessages[0]">
+                <iterate list="resolvedAddresses.customerMessages" entry="alert">
+                    <message type="danger">Fedex error ${alert.code}: ${alert.message}</message>
+                </iterate>
+            </if>
+            <if condition="responseMap.output.alerts &amp;&amp; responseMap.output.alerts[0]">
+                <iterate list="responseMap.output.alerts" entry="alert">
+                    <message type="danger">Fedex error(${alert.alertType}) - ${alert.code}: ${alert.message}</message>
+                </iterate>
+            </if>
+
         </actions>
     </service>
 
@@ -79,7 +86,6 @@
         </in-parameters>
         <out-parameters>
             <parameter name="addressMap" type="Map"/>
-            <parameter name="contactMap" type="Map"/>
         </out-parameters>
         <actions>
 
@@ -103,11 +109,23 @@
                 <select-field field-name="geoCodeAlpha2"/>
             </entity-find-one>
 
-            <!--Searching Organization -->
-            <entity-find-one entity-name="Organization" value-field="organization">
-                <field-map field-name="partyId" from="partyId"></field-map>
-            </entity-find-one>
-            <set field="companyName" from="organization?(organization.organizationName?:null):null"/>
+            <!-- Name and Company Details -->
+            <if condition="postalAddress.attnName"><then>
+                <set field="personName" from="postalAddress.attnName"/>
+                <set field="companyName" from="postalAddress.toName"/>
+            </then><else>
+                <set field="personName" from="postalAddress.toName"/>
+                <set field="companyName" from="null"/>
+            </else></if>
+            <if condition="!personName &amp;&amp; partyId">
+                <entity-find-one entity-name="mantle.party.PartyDetail" value-field="partyDetail">
+                    <field-map field-name="partyId"/>
+                </entity-find-one>
+                <if condition="partyDetail != null">
+                    <set field="personName" value="${partyDetail.firstName ? partyDetail.firstName + ' ' : ''}${partyDetail.lastName?:''}${partyDetail.organizationName?:''}"/>
+                </if>
+            </if>
+            <if condition="!personName"><return error="true" message="No name found for address ${contactMechId}"/></if>
 
             <!--Searching TelecomNumber -->
             <entity-find-one entity-name="TelecomNumber" value-field="number">
@@ -115,14 +133,8 @@
             </entity-find-one>
             <set field="phoneNumber" from="number?(number.contactNumber?:null):null"/>
 
-            <!--Searching Person -->
-            <entity-find-one entity-name="Person" value-field="person">
-                <field-map field-name="partyId" from="partyId"></field-map>
-            </entity-find-one>
-            <set field="firstName" from="person?(person.firstName?:null):null"/>
-
             <!-- Creating ContactMap -->
-            <set field="contactMap" from="[personName:firstName, phoneNumber:phoneNumber,
+            <set field="contact" from="[personName:personName, phoneNumber:phoneNumber,
                  companyName:companyName]" type="NewMap"/>
 
             <!-- Checking Required Details -->
@@ -131,10 +143,12 @@
             </if>
 
             <!-- Creating AddressMap -->
-            <set field="addressMap" from="streetLines:[postalAddress.address1, postalAddress.address2],
+            <set field="address" from="[streetLines:[postalAddress.address1, postalAddress.address2],
                 city:postalAddress.city,stateOrProvinceCode:geoStateProvinceData?geoStateProvinceData.geoCodeAlpha2:null,
-                countryCode:geoCountryData.geoCodeAlpha2,postalCode:postalAddress.postalCode" type="NewMap"/>
+                countryCode:geoCountryData.geoCodeAlpha2,postalCode:postalAddress.postalCode]" type="NewMap"/>
 
+            <!-- Returning AddressMap and ContactMap -->
+            <set field="addressMap" from="[address:address,contact:contact]" type="NewMap"/>
         </actions>
     </service>
 </services>
