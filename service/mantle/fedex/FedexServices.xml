@@ -8,14 +8,6 @@
             <parameter name="labelRequestMap"/>
         </out-parameters>
         <actions>
-            <!-- Searching FedexApiToken -->
-            <entity-find-one entity-name="ShippingGatewayOption" value-field="apiTokenOpt">
-                <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
-                <field-map field-name="optionEnumId" value="FedexApiToken"/>
-            </entity-find-one>
-            <if condition="!apiTokenOpt">
-                <return type="warning" message=" ${shippingGatewayConfigId} has no FedexApiToken, not getting label"/>
-            </if>
 
             <!-- Fetching Shipment Entity -->
             <entity-find-one entity-name="mantle.shipment.Shipment" value-field="shipment" for-update="true"/>
@@ -41,8 +33,7 @@
             <!-- Setting Connection With Fedex -->
             <service-call name="mantle.fedex.FedexServices.send#FedexRequest" out-map="response"
                 in-map="[shippingGatewayConfigId:shippingGatewayConfigId, method:'POST', path:'ship/v1/shipments',
-                contentType:'application/json', requestMap:request.labelRequestMap,
-                apiTokenValue:apiTokenOpt.optionValue, xLocale:'en-US']"/>
+                contentType:'application/json', requestMap:request.labelRequestMap, xLocale:'en-US']"/>
 
             <set field="responseMap" from="response.responseMap"/>
             <if condition="!responseMap">
@@ -87,7 +78,7 @@
             <set field="shippingGatewayConfigId" from="shippingGatewayConfigId?:routeSegment.shippingGatewayConfigId"/>
 
             <!-- Extracting ShipmentMethod/ServiceType details-->
-            <set field="shipmentMethodEnumId" from="shipmentMethodEnumId ?: routeSegment.shipmentMethodEnumId"/>
+            <set field="shipmentMethodEnumId" from="shipmentMethodEnumId?:routeSegment.shipmentMethodEnumId"/>
             <if condition="!shipmentMethodEnumId">
                 <return type="danger" message="In get#ShippingLabel Service, no shipmentMethod available."/>
             </if>
