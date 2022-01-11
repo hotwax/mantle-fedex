@@ -4,13 +4,11 @@
     <!-- Generic Service Request -->
     <service verb="send" noun="FedexRequest">
         <in-parameters>
-            <parameter name="method"/>
-            <parameter name="path"/>
-            <parameter name="contentType"/>
-            <parameter name="requestMap" type="Map"/>
-            <parameter name="requestPath"/>
-            <parameter name="apiTokenValue"/>
-            <parameter name="shippingGatewayConfigId"/>
+            <parameter name="method" required="true"/>
+            <parameter name="path" required="true"/>
+            <parameter name="contentType" required="true"/>
+            <parameter name="requestMap" type="Map" required="true"/>
+            <parameter name="shippingGatewayConfigId" required="true"/>
         </in-parameters>
         <out-parameters>
             <parameter name="responseMap" type="Map"/>
@@ -19,6 +17,18 @@
             <entity-find-one entity-name="ShipmentGatewayFedex" value-field="fedexGtwy">
                 <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
             </entity-find-one>
+            <if condition="!fedexGtwy">
+                <return type="danger" message="Connection details not available."/>
+            </if>
+
+            <!--Searching FedexApiToken-->
+            <entity-find-one entity-name="ShippingGatewayOption" value-field="apiTokenOpt">
+                <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
+                <field-map field-name="optionEnumId" value="FedexApiToken"/>
+            </entity-find-one>
+            <if condition="!apiTokenOpt">
+                <return type="danger" message="Shipping gateway ${shippingGatewayConfigId} has no FedexApiToken, not getting rates"/>
+            </if>
             <script>
                 import org.moqui.util.RestClient;
                 import groovy.json.JsonSlurper;
@@ -30,15 +40,8 @@
                 restClient.method(method)
                 restClient.uri(connectUrl)
                 restClient.contentType(contentType)
-                if(requestPath!=null &amp;&amp; requestPath!=""){
-                    restClient.text(requestPath)
-                }
-                if(apiTokenValue!=null){
-                    restClient.addHeader("Authorization", "${apiTokenValue}")
-                }
-                if(requestMap!=null){
-                    restClient.jsonObject(requestMap)
-                }
+                restClient.addHeader("Authorization", "${apiTokenOpt.optionValue}")
+                restClient.jsonObject(requestMap)
                 RestClient.RestResponse restResponse = restClient.call()
                 if (restResponse.statusCode != 200){
                     errorResponse = restResponse.jsonObject()
