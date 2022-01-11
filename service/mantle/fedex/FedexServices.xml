@@ -27,15 +27,6 @@
                 </else-if>
             </if>
 
-            <!-- Searching FedexApiToken -->
-            <entity-find-one entity-name="ShippingGatewayOption" value-field="apiTokenOpt">
-                <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
-                <field-map field-name="optionEnumId" value="FedexApiToken"/>
-            </entity-find-one>
-            <if condition="!apiTokenOpt">
-                <return type="warning" message=" ${shippingGatewayConfigId} has no FedexApiToken, not validating address"/>
-            </if>
-
             <!-- Converting Address Data to JSON Request Map -->
             <service-call name="mantle.fedex.FedexServices.get#AddressMap" in-map="[postalContactMechId:contactMechId]"
                 out-map="addressResponse"/>
@@ -45,14 +36,14 @@
             <!-- Setting Connection With Fedex -->
             <service-call name="mantle.fedex.FedexServices.send#FedexRequest" out-map="response"
                 in-map="[shippingGatewayConfigId:shippingGatewayConfigId, method:'POST', path:'address/v1/addresses/resolve',
-                contentType:'application/json', requestMap:requestMap, apiTokenValue:apiTokenOpt.optionValue]"/>
+                contentType:'application/json', requestMap:requestMap]"/>
 
             <!-- Verifying Correctness of Address -->
             <set field="responseMap" from="response.responseMap"/>
             <set field="resolvedAddresses" from="responseMap?responseMap.output.resolvedAddresses[0]:null"/>
             <set field="statusCodes" from="resolvedAddresses?resolvedAddresses.attributes:null"/>
             <if condition="responseMap==null || responseMap == '' || statusCodes.InterpolatedStreetAddress=='true'
-                || statusCodes.DPV=='false' || statusCodes.AddressType!='STANDARDIZED' || statusCodes.Resolved=='false' ">
+                || statusCodes.DPV=='false' || statusCodes.AddressType!='STANDARDIZED' || statusCodes.Resolved=='false'">
                 <then><set field="trustLevelEnumId" value="CmtlInvalid"/></then>
                 <else><set field="trustLevelEnumId" value="CmtlValid"/></else>
             </if>
@@ -144,11 +135,11 @@
 
             <!-- Creating AddressMap -->
             <set field="address" from="[streetLines:[postalAddress.address1, postalAddress.address2],
-                city:postalAddress.city,stateOrProvinceCode:geoStateProvinceData?geoStateProvinceData.geoCodeAlpha2:null,
-                countryCode:geoCountryData.geoCodeAlpha2,postalCode:postalAddress.postalCode]" type="NewMap"/>
+                city:postalAddress.city, stateOrProvinceCode:geoStateProvinceData?geoStateProvinceData.geoCodeAlpha2:null,
+                countryCode:geoCountryData.geoCodeAlpha2, postalCode:postalAddress.postalCode]" type="NewMap"/>
 
             <!-- Returning AddressMap and ContactMap -->
-            <set field="addressMap" from="[address:address,contact:contact]" type="NewMap"/>
+            <set field="addressMap" from="[address:address, contact:contact]" type="NewMap"/>
         </actions>
     </service>
 </services>
