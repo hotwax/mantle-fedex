@@ -48,14 +48,6 @@
         </out-parameters>
         <actions>
 
-            <!--Searching FedexApiToken-->
-            <entity-find-one entity-name="ShippingGatewayOption" value-field="apiTokenOpt">
-                <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
-                <field-map field-name="optionEnumId" value="FedexApiToken"/>
-            </entity-find-one>
-            <if condition="!apiTokenOpt">
-                <return type="warning" message="Shipping gateway ${shippingGatewayConfigId} has no FedexApiToken, not getting rates"/>
-            </if>
 
             <!-- Searching OrderPart -->
             <entity-find-one entity-name="mantle.order.OrderPart" value-field="orderPart">
@@ -99,8 +91,7 @@
                 <!-- Setting Connection With Fedex -->
                 <service-call name="mantle.fedex.FedexServices.send#FedexRequest" out-map="response"
                     in-map="[shippingGatewayConfigId:shippingGatewayConfigId, method:'POST', path:'rate/v1/rates/quotes',
-                    contentType:'application/json', requestMap:request.orderRequestMap,
-                    apiTokenValue:apiTokenOpt.optionValue, xLocale:'en-US']"/>
+                    contentType:'application/json', requestMap:request.orderRequestMap, xLocale:'en-US']"/>
 
                 <!-- Error Handling -->
                 <set field="responseMap" from="response.responseMap"/>
