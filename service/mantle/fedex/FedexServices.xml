@@ -17,8 +17,7 @@
                 <field-map field-name="shipmentBoxTypeId" from="boxId"/>
             </entity-find-one>
             <if condition="!boxType">
-                <message>Package ${shipmentPacakgeSeqId} has no box type, skipping Package</message>
-                <return/>
+                <return message="Package ${shipmentPacakgeSeqId} has no box type, skipping Package"/>
             </if>
 
             <!-- Searching dimension Unit -->
@@ -26,9 +25,8 @@
                 <field-map field-name="uomId" from="boxType.dimensionUomId ?: 'LEN_in'"/>
             </entity-find-one>
             <if condition="!(dimensionUom.abbreviation in ['in', 'cm'])">
-                <message>Package ${shipmentPackageSeqId} box type ${boxId} dimension unit must be one of: 'cm', 'in';
-                    skipping Package</message>
-                <return/>
+                <return message="Package ${shipmentPackageSeqId} box type ${boxId} dimension unit must be one of: 'cm', 'in';
+                    skipping Package"/>
             </if>
 
             <!-- Searching weight Unit -->
@@ -36,15 +34,13 @@
                 <field-map field-name="uomId" from="weightUomId ?: 'WT_lb'"/>
             </entity-find-one>
             <if condition="!(weightUom.abbreviation in ['lb', 'kg'])">
-                <message>Package ${shipmentPackageSeqId} box type ${boxId} must be one of: 'lb', 'kg'; skipping package
-                </message><return/>
+                <return message="Package ${shipmentPackageSeqId} box type ${boxId} must be one of: 'lb', 'kg'; skipping package"/>
             </if>
 
             <!-- dimension: Length, Width, Height -->
             <if condition="!boxType.boxLength || !boxType.boxWidth || !boxType.boxHeight">
-                <message>Package ${shipmentPackageSeqId} Box type ${boxId} is missing dimensions (length, width, height),
-                    skipping Package
-                </message><return/>
+                <return message="Package ${shipmentPackageSeqId} Box type ${boxId} is missing dimensions (length, width, height),
+                    skipping Package"/>
             </if>
 
             <!-- Creating subMaps for eachPackage -->
