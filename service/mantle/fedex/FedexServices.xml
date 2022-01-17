@@ -127,7 +127,6 @@
                 <if condition="!shipmentPackage">
                     <message>Package ${shipmentPackageSeqId} has no records in shipmentPackage, skipping Package
                     </message>
-                    <return/>
                 </if>
 
                 <!-- Adding every Package's weight and dimension in requestedPackageLineItems -->
