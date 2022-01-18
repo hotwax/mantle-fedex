@@ -30,7 +30,9 @@
             <!-- Converting Address Data to JSON Request Map -->
             <service-call name="mantle.fedex.FedexServices.get#AddressMap" in-map="[postalContactMechId:contactMechId]"
                 out-map="addressResponse"/>
-            <if condition="!addressResponse.addressMap"><return/></if>
+            <if condition="!addressResponse.addressMap">
+                <return type="danger" message="Invalid address or contact details."/>
+            </if>
             <set field="requestMap" from="[addressesToValidate:[[address:addressResponse.addressMap.address]]]" type="NewMap"/>
 
             <!-- Setting Connection With Fedex -->
@@ -89,16 +91,23 @@
             </if>
 
             <!-- Searching State/Province Code -->
-            <entity-find-one entity-name="Geo" value-field="geoStateProvinceData">
-                <field-map field-name="geoId" from="postalAddress.stateProvinceGeoId"/>
+            <entity-find entity-name="Geo" list="geoStateProvinceData">
+                <econdition field-name="geoId" from="postalAddress.stateProvinceGeoId"/>
+                <econditions combine="or">
+                    <econdition field-name="geoTypeEnumId" value="GEOT_STATE"/>
+                    <econdition field-name="geoTypeEnumId" value="GEOT_PROVINCE"/>
+                </econditions>
                 <select-field field-name="geoCodeAlpha2"/>
-            </entity-find-one>
+            </entity-find>
 
             <!-- Searching Country Code -->
-            <entity-find-one entity-name="Geo" value-field="geoCountryData">
-                <field-map field-name="geoId" from="postalAddress.countryGeoId"/>
-                <select-field field-name="geoCodeAlpha2"/>
-            </entity-find-one>
+            <entity-find entity-name="Geo" list="geoCountryData">
+                <econdition field-name="geoId" from="postalAddress.countryGeoId"/>
+                <econditions combine="or">
+                    <econdition field-name="geoTypeEnumId" value="GEOT_COUNTRY"/>
+                </econditions>
+                <select-field field-name="geoId"/>
+            </entity-find>
 
             <!-- Name and Company Details -->
             <if condition="postalAddress.attnName"><then>
@@ -116,7 +125,9 @@
                     <set field="personName" value="${partyDetail.firstName ? partyDetail.firstName + ' ' : ''}${partyDetail.lastName?:''}${partyDetail.organizationName?:''}"/>
                 </if>
             </if>
-            <if condition="!personName"><return error="true" message="No name found for address ${contactMechId}"/></if>
+            <if condition="!personName">
+                <return error="true" message="No name found for address ${postalContactMechId}"/>
+            </if>
 
             <!--Searching TelecomNumber -->
             <entity-find-one entity-name="TelecomNumber" value-field="number">
@@ -129,14 +140,14 @@
                  companyName:companyName]" type="NewMap"/>
 
             <!-- Checking Required Details -->
-            <if condition="!postalAddress.city || !geoCountryData || !geoCountryData.geoCodeAlpha2 ||!postalAddress.address1">
+            <if condition="!postalAddress.city || !geoCountryData || !geoCountryData[0].geoCodeAlpha2 ||!postalAddress.address1">
                 <return type="danger" message="Address is not Complete"/>
             </if>
 
             <!-- Creating AddressMap -->
             <set field="address" from="[streetLines:[postalAddress.address1, postalAddress.address2],
-                city:postalAddress.city, stateOrProvinceCode:geoStateProvinceData?geoStateProvinceData.geoCodeAlpha2:null,
-                countryCode:geoCountryData.geoCodeAlpha2, postalCode:postalAddress.postalCode]" type="NewMap"/>
+                city:postalAddress.city, stateOrProvinceCode:geoStateProvinceData?geoStateProvinceData[0].geoCodeAlpha2:null,
+                countryCode:geoCountryData[0].geoCodeAlpha2, postalCode:postalAddress.postalCode]" type="NewMap"/>
 
             <!-- Returning AddressMap and ContactMap -->
             <set field="addressMap" from="[address:address, contact:contact]" type="NewMap"/>
