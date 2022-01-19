@@ -38,7 +38,7 @@
             <!-- Setting Connection With Fedex -->
             <service-call name="mantle.fedex.FedexServices.send#FedexRequest" out-map="response"
                 in-map="[shippingGatewayConfigId:shippingGatewayConfigId, method:'POST', path:'address/v1/addresses/resolve',
-                contentType:'application/json', requestMap:requestMap]"/>
+                contentType:'application/json', requestMap:requestMap, xLocale:'en-US']"/>
 
             <!-- Verifying Correctness of Address -->
             <set field="responseMap" from="response.responseMap"/>
@@ -50,7 +50,7 @@
                 <else><set field="trustLevelEnumId" value="CmtlValid"/></else>
             </if>
             <!-- Updating trustLevelEnumId value -->
-            <log message="Fedex validate address ${contactMechId} trust ${trustLevelEnumId}}"/>
+            <log message="Fedex validate address ${contactMechId} trust ${trustLevelEnumId}"/>
             <entity-find-one entity-name="mantle.party.contact.ContactMech" value-field="contactMech"/>
             <set field="contactMech.trustLevelEnumId" from="trustLevelEnumId"/>
             <entity-update value-field="contactMech"/>
