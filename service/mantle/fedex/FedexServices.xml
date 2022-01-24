@@ -9,7 +9,7 @@
             <parameter name="contentType" required="true"/>
             <parameter name="requestMap" type="Map" required="true"/>
             <parameter name="shippingGatewayConfigId" required="true"/>
-            <parameter name="xLocale"/>
+            <parameter name="parameter" type="Map"/>
         </in-parameters>
         <out-parameters>
             <parameter name="responseMap" type="Map"/>
@@ -42,8 +42,8 @@
                 restClient.uri(connectUrl)
                 restClient.contentType(contentType)
                 restClient.addHeader("Authorization", "${apiTokenOpt.optionValue}")
-                if(xLocale!=null)
-                    restClient.addHeader("x-locale", "${xLocale}")
+                if(parameter!=null &amp;&amp; parameter.xLocale!=null)
+                    restClient.addHeader("x-locale", "${parameter.xLocale}")
                 restClient.jsonObject(requestMap)
                 RestClient.RestResponse restResponse = restClient.call()
                 if (restResponse.statusCode != 200){
