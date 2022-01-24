@@ -1,12 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <services xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
           xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/service-definition-2.1.xsd">
-  <service verb="request" noun="ShippingLabels">
+   <service verb="request" noun="ShippingLabels">
         <implements service="mantle.shipment.CarrierServices.request#ShippingLabels"/>
-        <out-parameters>
-            <parameter name="responseMap"/>
-            <parameter name="labelRequestMap"/>
-        </out-parameters>
         <actions>
 
             <!-- Fetching Shipment Entity -->
@@ -46,16 +42,14 @@
             </if>
 
             <!-- Storing eachPackage's trackingCode, labelDate and labelImage in packageRouteSeg -->
-            <set field="iterator" type="Integer" value="0"/>
             <iterate list="packageRouteSegList" entry="packageRouteSeg">
                 <set field="packageRouteSeg.trackingCode"
-                     from="responseMap.output.transactionShipments[0].pieceResponses[iterator].trackingNumber"/>
+                     from="responseMap.output.transactionShipments[0].pieceResponses[packageRouteSeg_index].trackingNumber"/>
                 <set field="packageRouteSeg.labelDate"
-                     from="responseMap.output.transactionShipments[0].pieceResponses[iterator].deliveryDatestamp"/>
+                     from="responseMap.output.transactionShipments[0].pieceResponses[packageRouteSeg_index].deliveryDatestamp"/>
                 <set field="packageRouteSeg.labelImage"
-                     from="responseMap.output.transactionShipments[0].pieceResponses[iterator].packageDocuments[0].encodedLabel"/>
+                     from="responseMap.output.transactionShipments[0].pieceResponses[packageRouteSeg_index].packageDocuments[0].encodedLabel"/>
                 <entity-update value-field="packageRouteSeg"/>
-                <script>iterator=iterator+1</script>
             </iterate>
         </actions>
     </service>
