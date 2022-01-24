@@ -36,9 +36,10 @@
             <set field="requestMap" from="[addressesToValidate:[[address:addressResponse.addressMap.address]]]" type="NewMap"/>
 
             <!-- Setting Connection With Fedex -->
+            <set field="parameter" from="[xLocale:'en-US']" type="NewMap"/>
             <service-call name="mantle.fedex.FedexServices.send#FedexRequest" out-map="response"
                 in-map="[shippingGatewayConfigId:shippingGatewayConfigId, method:'POST', path:'address/v1/addresses/resolve',
-                contentType:'application/json', requestMap:requestMap, xLocale:'en-US']"/>
+                contentType:'application/json', requestMap:requestMap, parameter:parameter]"/>
 
             <!-- Verifying Correctness of Address -->
             <set field="responseMap" from="response.responseMap"/>
@@ -66,7 +67,6 @@
                     <message type="danger">Fedex error(${alert.alertType}) - ${alert.code}: ${alert.message}</message>
                 </iterate>
             </if>
-
         </actions>
     </service>
 
