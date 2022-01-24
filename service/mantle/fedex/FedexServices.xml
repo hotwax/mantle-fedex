@@ -89,9 +89,10 @@
                 <if condition="!request.orderRequestMap"><return/></if>
 
                 <!-- Setting Connection With Fedex -->
+                <set field="parameter" from="[xLocale:'en-US']" type="NewMap"/>
                 <service-call name="mantle.fedex.FedexServices.send#FedexRequest" out-map="response"
                     in-map="[shippingGatewayConfigId:shippingGatewayConfigId, method:'POST', path:'rate/v1/rates/quotes',
-                    contentType:'application/json', requestMap:request.orderRequestMap, xLocale:'en-US']"/>
+                    contentType:'application/json', requestMap:request.orderRequestMap, parameter:parameter]"/>
 
                 <!-- Error Handling -->
                 <set field="responseMap" from="response.responseMap"/>
