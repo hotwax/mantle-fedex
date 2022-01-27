@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<services xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/service-definition-2.1.xsd">
+
+    <!-- Generic Service Request -->
+    <service verb="send" noun="FedexRequest">
+        <in-parameters>
+            <parameter name="method" required="true"/>
+            <parameter name="path" required="true"/>
+            <parameter name="contentType" required="true"/>
+            <parameter name="requestMap" type="Map" required="true"/>
+            <parameter name="shippingGatewayConfigId" required="true"/>
+        </in-parameters>
+        <out-parameters>
+            <parameter name="responseMap" type="Map"/>
+        </out-parameters>
+        <actions>
+            <entity-find-one entity-name="ShipmentGatewayFedex" value-field="fedexGtwy">
+                <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
+            </entity-find-one>
+            <if condition="!fedexGtwy">
+                <return type="danger" message="Connection details not available."/>
+            </if>
+
+            <!--Searching FedexApiToken-->
+            <entity-find-one entity-name="ShippingGatewayOption" value-field="apiTokenOpt">
+                <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
+                <field-map field-name="optionEnumId" value="FedexApiToken"/>
+            </entity-find-one>
+            <if condition="!apiTokenOpt">
+                <return type="danger" message="Shipping gateway ${shippingGatewayConfigId} has no FedexApiToken, not getting rates"/>
+            </if>
+            <script>
+                import org.moqui.util.RestClient;
+                import groovy.json.JsonSlurper;
+                def connectUrl=fedexGtwy.connectUrl+path;
+                if(!connectUrl.endsWith("/")){
+                    connectUrl+="/";
+                }
+                RestClient restClient = ec.service.rest()
+                restClient.method(method)
+                restClient.uri(connectUrl)
+                restClient.contentType(contentType)
+                restClient.addHeader("Authorization", "${apiTokenOpt.optionValue}")
+                restClient.jsonObject(requestMap)
+                RestClient.RestResponse restResponse = restClient.call()
+                if (restResponse.statusCode != 200){
+                    errorResponse = restResponse.jsonObject()
+                    ec.message.addMessage("Fedex API error")
+                    errorResponse.errors.each{ alert->
+                       ec.message.addMessage("Fedex error(${restResponse.statusCode}) - ${alert.code}: ${alert.message}")
+                    }
+                    return
+                }
+                responseMap = restResponse.jsonObject()
+            </script>
+        </actions>
+    </service>
+</services>
