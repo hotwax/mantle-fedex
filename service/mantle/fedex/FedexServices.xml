@@ -102,9 +102,7 @@
             <!-- Searching Country Code -->
             <entity-find entity-name="Geo" list="geoCountryData">
                 <econdition field-name="geoId" from="postalAddress.countryGeoId"/>
-                <econditions combine="or">
-                    <econdition field-name="geoTypeEnumId" value="GEOT_COUNTRY"/>
-                </econditions>
+                <econdition field-name="geoTypeEnumId" value="GEOT_COUNTRY"/>
                 <select-field field-name="geoId"/>
             </entity-find>
 
