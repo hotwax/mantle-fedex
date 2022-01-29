@@ -92,7 +92,7 @@
             <!-- Searching State/Province Code -->
             <entity-find entity-name="Geo" list="geoStateProvinceData">
                 <econdition field-name="geoId" from="postalAddress.stateProvinceGeoId"/>
-                <econditions combine="or">
+                <econditions combine="in">
                     <econdition field-name="geoTypeEnumId" value="GEOT_STATE"/>
                     <econdition field-name="geoTypeEnumId" value="GEOT_PROVINCE"/>
                 </econditions>
