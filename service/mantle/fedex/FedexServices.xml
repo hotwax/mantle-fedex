@@ -44,7 +44,7 @@
             <set field="responseMap" from="response.responseMap"/>
             <set field="resolvedAddresses" from="responseMap?responseMap.output.resolvedAddresses[0]:null"/>
             <set field="validationAttributes" from="resolvedAddresses?resolvedAddresses.attributes:null"/>
-            <if condition="responseMap==null || responseMap == '' || validationAttributes.InterpolatedStreetAddress=='true'
+            <if condition="responseMap==null || responseMap == '' ||  validationAttributes==null || validationAttributes.InterpolatedStreetAddress=='true'
                 || validationAttributes.DPV=='false' || validationAttributes.AddressType!='STANDARDIZED' || validationAttributes.Resolved=='false'">
                 <then><set field="trustLevelEnumId" value="CmtlInvalid"/></then>
                 <else><set field="trustLevelEnumId" value="CmtlValid"/></else>
