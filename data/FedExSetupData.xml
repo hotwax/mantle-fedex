@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<entity-facade-xml type="seed">
+    <moqui.basic.Enumeration description="FedEX REST API CLIENT ID" enumId="SgoFedExClientId" enumTypeId="ShippingGatewayType"/>
+    <moqui.basic.Enumeration description="FedEx REST API CLIENT SECRET" enumId="SgoFedExClientSecret" enumTypeId="ShippingGatewayType"/>
+    <moqui.basic.Enumeration description="FedEx ACCOUNT NUMBER" enumId="SgoFedExAccountNumber" enumTypeId="ShippingGatewayType"/>
+    <moqui.basic.Enumeration description="FedEx REST API" enumId="ShGtwyFedEx" enumTypeId="ShippingGatewayType"/>
+    <moqui.basic.Enumeration description="FedEx Gateway Options" enumId="EgFedExOption" enumTypeId="EnumGroup"/>
+    <moqui.basic.EnumGroupMember enumGroupEnumId="EgFedExOption" enumId="SgoFedExClientId"/>
+    <moqui.basic.EnumGroupMember enumGroupEnumId="EgFedExOption" enumId="SgoFedExClientSecret"/>
+    <moqui.basic.EnumGroupMember enumGroupEnumId="EgFedExOption" enumId="SgoFedExAccountNumber"/>
+</entity-facade-xml>
