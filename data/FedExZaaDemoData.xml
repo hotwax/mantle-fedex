@@ -40,9 +40,9 @@
         <methods carrierPartyId="FedEx" shipmentMethodEnumId="ShMthThirdDay" gatewayServiceCode="FEDEX_EXPRESS_SAVER"/>
 
         <!--  set your FedEx API token (test or live) with a record like this  -->
-        <options optionEnumId="SgoFedExClientId" optionValue="l7c6526489dc07425f9541c12738d919b4"/>
-        <options optionEnumId="SgoFedExClientSecret" optionValue="22b4671020c044d59907dab601b9efb8"/>
-        <options optionEnumId="SgoFedExAccountNumber" optionValue="740561073"/>
+        <options optionEnumId="SgoFedExClientId" optionValue=""/>
+        <options optionEnumId="SgoFedExClientSecret" optionValue=""/>
+        <options optionEnumId="SgoFedExAccountNumber" optionValue=""/>
         <options optionEnumId="SgoLabelType" optionValue="PAPER_4X6"/>
 
 
