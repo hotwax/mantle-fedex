@@ -28,7 +28,9 @@
 
 
     <mantle.shipment.carrier.ShippingGatewayConfig shippingGatewayConfigId="FedEx_DEMO"
-                                                   shippingGatewayTypeEnumId="ShGtwyFedEx" description="FedEx API Demo">
+                                                   shippingGatewayTypeEnumId="ShGtwyFedEx" description="FedEx API Demo"
+                                                   getRateServiceName="mantle.FedExServices.get#ShippingRate"
+                                                   requestLabelServiceName="mantle.FedExServices.create#ShipmentLabel">
 
         <!-- set your FedEx Account IDs for carriers with records like these -->
 

@@ -46,7 +46,7 @@
     <!-- ========== Shipping Rate Service ============ -->
     <!-- ============================================= -->
 
-    <service verb="post" noun="ShippingRate">
+    <service verb="get" noun="ShippingRate">
         <implements service="mantle.shipment.CarrierServices.get#ShippingRate"/>
         <in-parameters>
             <parameter name="shippingGatewayConfigId" default-value="FedEx_DEMO"/>
@@ -194,7 +194,7 @@
     <!-- =========== Create Label Service ============ -->
     <!-- ============================================= -->
     
-    <service verb="post" noun="ShipmentLabel">
+    <service verb="create" noun="ShipmentLabel">
         <implements service="mantle.shipment.CarrierServices.request#ShippingLabels"/>
         <in-parameters>
             <parameter name="shippingGatewayConfigId" default-value="FedEx_Demo"/>
@@ -399,7 +399,6 @@
 
             <set field="pieceResponse" from="responseMap.output.transactionShipments.get(0).pieceResponses.get(0)"/>
 
-            <log message="${pieceResponse.trackingNumber}======${}======${pieceResponse.baseRateAmount}"/>
             <set field="packageRouteSeg.trackingCode" from="pieceResponse.trackingNumber"/>
             <set field="packageRouteSeg.labelUrl" from="pieceResponse.packageDocuments.get(0).url"/>
             <set field="packageRouteSeg.baseAmount" from="pieceResponse.baseRateAmount"/>
@@ -412,7 +411,7 @@
     <!--  ========== Void Label Service ===============  -->
     <!--  =============================================  -->
 
-    <service verb="delete" noun="CancelShipment">
+    <service verb="cancel" noun="Shipment">
         <in-parameters>
             <parameter name="shipmentId" required="true"/>
             <parameter name="shipmentRouteSegmentSeqId" required="true"/>
