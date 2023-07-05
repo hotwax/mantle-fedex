@@ -1,42 +1,33 @@
-# gradle/build files
-build
-.gradle
-/framework/dependencies
-
-# build generated files
-/moqui*.war
-/Save*.zip
-
-# runtime directory (separate repository so ignore directory entirely)
-/runtime
-/execwartmp
-/docker/runtime
-/docker/db
+# runtime added files
+build/
+lib/
 
 # IntelliJ IDEA files
-.idea
-out
+.idea/
+out/
 *.ipr
 *.iws
 *.iml
 
 # Eclipse files (and some general ones also used by Eclipse)
 .metadata
-bin
-tmp
+.gradle
+bin/
+tmp/
 *.tmp
 *.bak
 *.swp
 *~.nib
 local.properties
-.settings
+.settings/
 .loadpath
 
 # NetBeans files
-nbproject/private
-nbbuild
-.nb-gradle
-nbdist
+nbproject/private/
+nbbuild/
+.nb-gradle/
+dist/
+nbdist/
 nbactions.xml
 nb-configuration.xml
 

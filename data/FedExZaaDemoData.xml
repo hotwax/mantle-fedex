@@ -65,12 +65,10 @@
     </mantle.shipment.carrier.ShippingGatewayConfig>
 
     <!--  used in mantle.shipment.CarrierServices ShipmentLabels services  -->
-    <moqui.security.UserGroupPreference userGroupId="ALL_USERS" preferenceKey="ValidateAddressGatewayConfigId" preferenceValue="FedEx_DEMO"/>
     <moqui.security.UserGroupPreference userGroupId="ALL_USERS" preferenceKey="DefaultShipmentGatewayConfigId" preferenceValue="FedEx_DEMO"/>
 
     <!--  example per org/vendor settings, used as defaults if not store; note that for screens like EditParty with no store or
             vendor the Owner Party must be set to use these settings  -->
-    <mantle.party.PartySetting partyId="ORG_ZIZI_RETAIL" partySettingTypeId="ValidateAddressGatewayConfigId" settingValue="FedEx_DEMO"/>
     <mantle.party.PartySetting partyId="ORG_ZIZI_RETAIL" partySettingTypeId="DefaultShipmentGatewayConfigId" settingValue="FedEx_DEMO"/>
 
     <mantle.product.store.ProductStore productStoreId="POPC_DEFAULT">
