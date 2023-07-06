@@ -398,7 +398,7 @@
     <!--  ========== Void Label Service ===============  -->
     <!--  =============================================  -->
 
-    <service verb="cancel" noun="Shipment">
+    <service verb="void" noun="Shipment">
         <in-parameters>
             <parameter name="shipmentId" required="true"/>
             <parameter name="shipmentRouteSegmentSeqId" required="true"/>
@@ -418,6 +418,10 @@
                 <field-map field-name="optionEnumId" value="SgoFedExAccountNumber"/>
             </entity-find-one>
             <set field="AccountNumber" from="AccountNum?.optionValue"/>
+            <set field="accessToken" from="ec.cacheFacade.getCache('fedex').get('accessToken')"/>
+            <if condition="!accessToken">
+                <service-call name="mantle.FedExServices.request#AccessToken" out-map="context"/>
+            </if>
 
 
             <!-- ============== Shipment Record ============== -->
