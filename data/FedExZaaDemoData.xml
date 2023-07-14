@@ -47,21 +47,6 @@
         <options optionEnumId="SgoFedExAccountNumber" optionValue=""/>
         <options optionEnumId="SgoLabelType" optionValue="PAPER_4X6"/>
 
-
-        <!--  use ShippingGatewayBoxType to override default gatewayBoxId on ShipmentBoxType  -->
-        <boxTypes shipmentBoxTypeId="FedEx_Box_Small_1" gatewayBoxId="FEDEX_SMALL_BOX"/>
-        <boxTypes shipmentBoxTypeId="FedEx_Box_Small_2" gatewayBoxId="FEDEX_SMALL_BOX"/>
-        <boxTypes shipmentBoxTypeId="FedEx_Box_Medium_1" gatewayBoxId="FEDEX_MEDIUM_BOX"/>
-        <boxTypes shipmentBoxTypeId="FedEx_Box_Medium_2" gatewayBoxId="FEDEX_MEDIUM_BOX"/>
-        <boxTypes shipmentBoxTypeId="FedEx_Box_Large_1" gatewayBoxId="FEDEX_LARGE_BOX"/>
-        <boxTypes shipmentBoxTypeId="FedEx_Box_Large_2" gatewayBoxId="FEDEX_LARGE_BOX"/>
-        <boxTypes shipmentBoxTypeId="FedEx_Box_Extra_Large_1" gatewayBoxId="FEDEX_EXTRA_LARGE_BOX"/>
-        <boxTypes shipmentBoxTypeId="FedEx_Box_Extra_Large_2" gatewayBoxId="FEDEX_EXTRA_LARGE_BOX"/>
-        <boxTypes shipmentBoxTypeId="FedEx_Envelope" gatewayBoxId="FEDEX_ENVELOPE"/>
-        <boxTypes shipmentBoxTypeId="FedEx_Tube" gatewayBoxId="FEDEX_TUBE"/>
-        <boxTypes shipmentBoxTypeId="FedEx_Pak_1" gatewayBoxId="FEDEX_PAK"/>
-        <boxTypes shipmentBoxTypeId="FedEx_Pak_2" gatewayBoxId="FEDEX_PAK"/>
-
     </mantle.shipment.carrier.ShippingGatewayConfig>
 
     <!--  used in mantle.shipment.CarrierServices ShipmentLabels services  -->
