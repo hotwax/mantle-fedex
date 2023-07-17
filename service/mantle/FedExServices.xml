@@ -22,17 +22,19 @@
                 <field-map field-name="shippingGatewayConfigId"/>
                 <field-map field-name="optionEnumId" value="SgoFedExClientSecret"/>
             </entity-find-one>
-            <set field="parameter"  value="grant_type=${client_credentials}&amp;client_id=${apiClientId?.optionValue}&amp;client_secret=${apiClientSecret?.optionValue}"/>
+            <set field="parameter"  value="grant_type=client_credentials&amp;client_id=${apiClientId.optionValue}&amp;client_secret=${apiClientSecret.optionValue}"/>
             <script>
+                import org.moqui.util.RestClient;
+                import org.moqui.util.RestClient.RestResponse;
                 <![CDATA[
-                    org.moqui.util.RestClient restClient = ec.service.rest()
-                           .method(org.moqui.util.RestClient.POST)
-                           .addHeader("Content-Type", "application/x-www-form-urlencoded")
-                           .uri(https://apis-sandbox.fedex.com/oauth/token")
-                           .build().text(parameter)
-                    org.moqui.util.RestClient.RestResponse restResponse = restClient.call()
+                    RestClient restClient = ec.service.rest()
+                            .method(RestClient.POST)
+                            .addHeader("Content-Type", "application/x-www-form-urlencoded")
+                            .uri("https://apis-sandbox.fedex.com/oauth/token")
+                            .text(parameter)
+                    RestResponse restResponse = restClient.call()
                     if (restResponse.statusCode < 200 || restResponse.statusCode >= 300) {
-                        errMsg = restResponse.text()
+                        ec.logger.warn("Unsuccessful with status code: ${restResponse.statusCode} and response: ${restResponse.text()}")
                         return
                     }
                     responseMap = restResponse.jsonObject()
@@ -51,7 +53,6 @@
         <implements service="mantle.shipment.CarrierServices.get#ShippingRate"/>
         <out-parameters>
             <parameter name="responseMap"/>
-            <parameter name="errMsg"/>
         </out-parameters>
         <actions>
 
@@ -150,15 +151,17 @@
             </if>
 
             <script>
+                import org.moqui.util.RestClient;
+                import org.moqui.util.RestClient.RestResponse;
                 <![CDATA[
-                    org.moqui.util.RestClient restClient = ec.service.rest()
-                            .method(org.moqui.util.RestClient.POST)
+                    RestClient restClient = ec.service.rest()
+                            .method(RestClient.POST)
                             .addHeader("Content-Type", "application/json").jsonObject(requestMap)
                             .addHeader("Authorization", "Bearer ${accessToken}")
-                            .uri(https://apis-sandbox.fedex.com/rate/v1/rates/quotes").build()
-                    org.moqui.util.RestClient.RestResponse restResponse = restClient.call()
+                            .uri("https://apis-sandbox.fedex.com/rate/v1/rates/quotes")
+                    RestResponse restResponse = restClient.call()
                     if (restResponse.statusCode < 200 || restResponse.statusCode >= 300) {
-                        errMsg = restResponse.text()
+                        ec.logger.warn("Unsuccessful with status code: ${restResponse.statusCode} and response: ${restResponse.text()}")
                         return
                     }
                     responseMap = restResponse.jsonObject()
@@ -176,7 +179,6 @@
         <implements service="mantle.shipment.CarrierServices.request#ShippingLabels"/>
         <out-parameters>
             <parameter name="responseMap"/>
-            <parameter name="errMsg"/>
         </out-parameters>
         <actions>
             <!-- ~~~~~~~~~~~~~~ FedEx Account Number ~~~~~~~~~~~~~~-->
@@ -210,8 +212,8 @@
             </if>
 
             <!-- ~~~~~~~~~~~~~ Shipper Details ~~~~~~~~~~~~~~~~ -->
-
-            <if condition="!routeSegment.originPostalContactMechId &amp;&amp; routeSegment.originFacilityId">
+            <set field="originPostalContactMechId" from="routeSegment.originPostalContactMechId"/>
+            <if condition="!originPostalContactMechId &amp;&amp; routeSegment.originFacilityId">
                 <service-call name="mantle.facility.ContactServices.get#FacilityDefaultShipOrigin" out-map="facOriginOut" in-map="[facilityId:routeSegment.originFacilityId]"/>
                 <if condition="facOriginOut.postalContactMechId">
                     <set field="originPostalContactMechId" from="facOriginOut.postalContactMechId"/>
@@ -284,7 +286,7 @@
 
             <set field="recipients" from="[[contact:[personName:destPostalAddress.toName,phoneNumber:destPhoneNumber,companyName:destPostalAddress.attnName],
                         address:[streetLines:[destPostalAddress.address1,destPostalAddress.address2],city:destPostalAddress.city,stateOrProvinceCode:destStateGeo.geoCodeAlpha2,
-                        postalCode:destPostalCode,countryCode:destCountryGeo.geoCodeAlpha2]]]"/>
+                        postalCode:destPostalAddress.postalCode,countryCode:destCountryGeo.geoCodeAlpha2]]]"/>
 
             <!-- ~~~~~~~~~~~~~ Shipment Method Details ~~~~~~~~~~~~~ -->
 
@@ -304,10 +306,13 @@
             <if condition="!shipmentPackage">
                 <return error="true" message="Any package not set on shipment ${shipmentId}:${shipmentPackageSeqId}"/>
             </if>
+            <if condition="!shipmentPackage.weight">
+                <return error="true" message="Weight of package is not set on shipment ${shipmentId}:${shipmentPackageSeqId}"/>
+            </if>
             <entity-find-one entity-name="mantle.shipment.ShipmentBoxType" value-field="box">
                 <field-map field-name="shipmentBoxTypeId" from="shipmentPackage.shipmentBoxTypeId"/>
             </entity-find-one>
-            <if condition="box">
+            <if condition="!box">
                 <return error="true" message="Packaging Type is not set for Shipment package ${shipmentId}:${shipmentPackageSeqId}"/>
             </if>
             <set field="packagingType" from="box.gatewayBoxId"/>
@@ -317,7 +322,7 @@
                     <field-map field-name="uomId" from="shipmentPackage.weightUomId"/>
                     <field-map field-name="toUomId" value="WT_lb"/>
                 </entity-find-one>
-                <set field="weight" from="shipmentPackage.weight*conversion.conversionFactor"/>
+                <set field="weightAmount" from="weightAmount*conversion.conversionFactor"/>
             </if>
 
             <!-- ~~~~~~~~~~~~~ Shipment Package Details ~~~~~~~~~~~~~ -->
@@ -329,25 +334,28 @@
 
             <set field="requestedShipment" from="[shipper:shipper,recipients:recipients,shipDatestamp:shipDatestamp,serviceType:gatewayMethod.gatewayServiceCode,
                         packagingType:packagingType,pickupType:'USE_SCHEDULED_PICKUP',shippingChargesPayment:[paymentType: 'SENDER'],labelSpecification:[imageType:'PDF',
-                        labelStockType:labelType.optionValue],requestedPackageLineItems:[[groupPackageCount:1,weight:[value:weight,units:'LB']]]]"/> <!--Image type can also be png-->
+                        labelStockType:labelType.optionValue],requestedPackageLineItems:[[groupPackageCount:1,weight:[value:weightAmount,units:'LB']]]]"/> <!--Image type can also be png-->
 
             <!--'labelResponseOptions' can also be 'LABEL' which gives encoded label in byte from-->
             <set field="requestMap" from="[labelResponseOptions:'URL_ONLY',requestedShipment:requestedShipment,accountNumber:[value:account.optionValue]]"/>
 
             <set field="accessToken" from="ec.cacheFacade.getCache('fedex').get('accessToken')"/>
             <if condition="!accessToken">
-                <service-call name="mantle.FedExServices.request#AccessToken" out-map="context"/>
+                <service-call name="mantle.FedExServices.request#AccessToken" in-map="context" out-map="context"/>
             </if>
+            <log message="${requestMap}+++"/>
             <script>
+                import org.moqui.util.RestClient;
+                import org.moqui.util.RestClient.RestResponse;
                 <![CDATA[
-                    org.moqui.util.RestClient restClient = ec.service.rest()
-                            .method(org.moqui.util.RestClient.POST)
+                    RestClient restClient = ec.service.rest()
+                            .method(RestClient.POST)
                             .addHeader("Content-Type", "application/json").jsonObject(requestMap)
                             .addHeader("Authorization", "Bearer ${accessToken}")
-                            .uri("https://apis-sandbox.fedex.com/ship/v1/shipments").build()
-                    org.moqui.util.RestClient.RestResponse restResponse = restClient.call()
+                            .uri("https://apis-sandbox.fedex.com/ship/v1/shipments")
+                    RestResponse restResponse = restClient.call()
                     if (restResponse.statusCode < 200 || restResponse.statusCode >= 300) {
-                        errMsg = restResponse.text()
+                        ec.logger.warn("Unsuccessful with status code: ${restResponse.statusCode} and response: ${restResponse.text()}")
                         return
                     }
                     responseMap = restResponse.jsonObject()
@@ -376,22 +384,16 @@
     <!--  =============================================  -->
 
     <service verb="void" noun="Shipment">
-        <in-parameters>
-            <parameter name="shipmentId" required="true"/>
-            <parameter name="shipmentRouteSegmentSeqId" required="true"/>
-            <parameter name="shipmentPackageSeqId"/>
-            <parameter name="shippingGatewayConfigId" required="true"/>
-        </in-parameters>
+        <implements service="mantle.shipment.CarrierServices.refund#ShippingLabels"/>
         <out-parameters>
             <parameter name="responseMap"/>
-            <parameter name="errMsg"/>
         </out-parameters>
         <actions>
 
             <!--  ==============  Account Details  ==============  -->
 
             <entity-find-one entity-name="mantle.shipment.carrier.ShippingGatewayOption" value-field="accountNum">
-                <field-map field-name="shippingGatewayConfigId" value="FedEx_DEMO"/>
+                <field-map field-name="shippingGatewayConfigId"/>
                 <field-map field-name="optionEnumId" value="SgoFedExAccountNumber"/>
             </entity-find-one>
 
@@ -425,15 +427,17 @@
                 <service-call name="mantle.FedExServices.request#AccessToken" out-map="context"/>
             </if>
             <script>
+                import org.moqui.util.RestClient;
+                import org.moqui.util.RestClient.RestResponse;
                 <![CDATA[
-                    org.moqui.util.RestClient restClient = ec.service.rest()
-                            .method(org.moqui.util.RestClient.PUT)
+                    RestClient restClient = ec.service.rest()
+                            .method(RestClient.PUT)
                             .addHeader("Content-Type", "application/json").jsonObject(requestMap)
                             .addHeader("Authorization", "Bearer ${accessToken}")
-                            .uri("https://apis-sandbox.fedex.com/ship/v1/shipments/cancel").build()
-                    org.moqui.util.RestClient.RestResponse restResponse = restClient.call()
+                            .uri("https://apis-sandbox.fedex.com/ship/v1/shipments/cancel")
+                    RestResponse restResponse = restClient.call()
                     if (restResponse.statusCode < 200 || restResponse.statusCode >= 300) {
-                        errMsg = restResponse.text()
+                        ec.logger.warn("Unsuccessful with status code: ${restResponse.statusCode} and response: ${restResponse.text()}")
                         return
                     }
                     responseMap = restResponse.jsonObject()
