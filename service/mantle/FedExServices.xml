@@ -18,10 +18,16 @@
                 <field-map field-name="shippingGatewayConfigId"/>
                 <field-map field-name="optionEnumId" value="SgoFedExClientId"/>
             </entity-find-one>
+            <if condition="!apiClientId">
+                <return error="true" message="Client Id is not set on Shipping Gateway Config Id:${shippingGatewayConfigId}"/>
+            </if>
             <entity-find-one entity-name="mantle.shipment.carrier.ShippingGatewayOption" value-field="apiClientSecret">
                 <field-map field-name="shippingGatewayConfigId"/>
                 <field-map field-name="optionEnumId" value="SgoFedExClientSecret"/>
             </entity-find-one>
+            <if condition="!apiClientSecret">
+                <return error="true" message="Client Secret is not set on Shipping Gateway Config Id:${shippingGatewayConfigId}"/>
+            </if>
             <set field="parameter"  value="grant_type=client_credentials&amp;client_id=${apiClientId.optionValue}&amp;client_secret=${apiClientSecret.optionValue}"/>
             <script>
                 import org.moqui.util.RestClient;
@@ -62,6 +68,9 @@
                 <field-map field-name="shippingGatewayConfigId"/>
                 <field-map field-name="optionEnumId" value="SgoFedExAccountNumber"/>
             </entity-find-one>
+            <if condition="!accountNum">
+                <return error="true" message="Account number is not set on Shipping Gateway Config Id:${shippingGatewayConfigId}"/>
+            </if>
 
             <!-- ==============  Shipment_Record  ============== -->
 
@@ -147,7 +156,7 @@
 
             <set field="accessToken" from="ec.cacheFacade.getCache('fedex').get('accessToken')"/>
             <if condition="!accessToken">
-                <service-call name="mantle.FedExServices.request#AccessToken" out-map="context"/>
+                <service-call name="mantle.FedExServices.request#AccessToken" in-map="context" out-map="context"/>
             </if>
 
             <script>
@@ -175,7 +184,7 @@
     <!-- =========== Create Label Service ============ -->
     <!-- ============================================= -->
     
-    <service verb="create" noun="ShipmentLabel">
+    <service verb="create" noun="ShippingLabel">
         <implements service="mantle.shipment.CarrierServices.request#ShippingLabels"/>
         <out-parameters>
             <parameter name="responseMap"/>
@@ -183,10 +192,13 @@
         <actions>
             <!-- ~~~~~~~~~~~~~~ FedEx Account Number ~~~~~~~~~~~~~~-->
 
-            <entity-find-one entity-name="mantle.shipment.carrier.ShippingGatewayOption" value-field="account">
+            <entity-find-one entity-name="mantle.shipment.carrier.ShippingGatewayOption" value-field="accountNum">
                 <field-map field-name="shippingGatewayConfigId"/>
                 <field-map field-name="optionEnumId" value="SgoFedExAccountNumber"/>
             </entity-find-one>
+            <if condition="!accountNum">
+                <return error="true" message="Account number is not set on Shipping Gateway Config Id:${shippingGatewayConfigId}"/>
+            </if>
 
             <!-- ~~~~~~~~~~~~~ shipment:routeSegment ~~~~~~~~~~~~~ -->
             <entity-find-one entity-name="mantle.shipment.Shipment" value-field="shipment" for-update="true"/>
@@ -331,19 +343,21 @@
                 <field-map field-name="shippingGatewayConfigId"/>
                 <field-map field-name="optionEnumId" value="SgoLabelType"/>
             </entity-find-one>
+            <if condition="!labelType">
+                <return error="true" message="Label Type is not set on Shipping Gateway Config Id:${shippingGatewayConfigId}"/>
+            </if>
 
             <set field="requestedShipment" from="[shipper:shipper,recipients:recipients,shipDatestamp:shipDatestamp,serviceType:gatewayMethod.gatewayServiceCode,
                         packagingType:packagingType,pickupType:'USE_SCHEDULED_PICKUP',shippingChargesPayment:[paymentType: 'SENDER'],labelSpecification:[imageType:'PDF',
                         labelStockType:labelType.optionValue],requestedPackageLineItems:[[groupPackageCount:1,weight:[value:weightAmount,units:'LB']]]]"/> <!--Image type can also be png-->
 
             <!--'labelResponseOptions' can also be 'LABEL' which gives encoded label in byte from-->
-            <set field="requestMap" from="[labelResponseOptions:'URL_ONLY',requestedShipment:requestedShipment,accountNumber:[value:account.optionValue]]"/>
+            <set field="requestMap" from="[labelResponseOptions:'URL_ONLY',requestedShipment:requestedShipment,accountNumber:[value:accountNum.optionValue]]"/>
 
             <set field="accessToken" from="ec.cacheFacade.getCache('fedex').get('accessToken')"/>
             <if condition="!accessToken">
                 <service-call name="mantle.FedExServices.request#AccessToken" in-map="context" out-map="context"/>
             </if>
-            <log message="${requestMap}+++"/>
             <script>
                 import org.moqui.util.RestClient;
                 import org.moqui.util.RestClient.RestResponse;
@@ -383,7 +397,7 @@
     <!--  ========== Void Label Service ===============  -->
     <!--  =============================================  -->
 
-    <service verb="void" noun="Shipment">
+    <service verb="void" noun="ShippingLabel">
         <implements service="mantle.shipment.CarrierServices.refund#ShippingLabels"/>
         <out-parameters>
             <parameter name="responseMap"/>
@@ -396,6 +410,9 @@
                 <field-map field-name="shippingGatewayConfigId"/>
                 <field-map field-name="optionEnumId" value="SgoFedExAccountNumber"/>
             </entity-find-one>
+            <if condition="!accountNum">
+                <return error="true" message="Account number is not set on Shipping Gateway Config Id:${shippingGatewayConfigId}"/>
+            </if>
 
             <!-- ============== Shipment Record ============== -->
 
@@ -424,7 +441,7 @@
 
             <set field="accessToken" from="ec.cacheFacade.getCache('fedex').get('accessToken')"/>
             <if condition="!accessToken">
-                <service-call name="mantle.FedExServices.request#AccessToken" out-map="context"/>
+                <service-call name="mantle.FedExServices.request#AccessToken" in-map="context" out-map="context"/>
             </if>
             <script>
                 import org.moqui.util.RestClient;
