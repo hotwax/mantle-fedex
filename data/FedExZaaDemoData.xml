@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<entity-facade-xml type="demo">
+    <mantle.shipment.ShipmentBoxType shipmentBoxTypeId="FedEx_Box_Extra_Large_1" description="FedEx® Extra Large Box (X1)"
+                                     dimensionUomId="LEN_in" boxLength="11.88" boxWidth="11.00" boxHeight="10.75" gatewayBoxId="FEDEX_EXTRA_LARGE_BOX"/>
+    <mantle.shipment.ShipmentBoxType shipmentBoxTypeId="FedEx_Box_Extra_Large_2" description="FedEx® Extra Large Box (X2)"
+                                     dimensionUomId="LEN_in" boxLength="15.75" boxWidth="14.13" boxHeight="6.00" gatewayBoxId="FEDEX_EXTRA_LARGE_BOX"/>
+    <mantle.shipment.ShipmentBoxType shipmentBoxTypeId="FedEx_Box_Large_1" description="FedEx® Large Box (L1)"
+                                     dimensionUomId="LEN_in" boxLength="17.50" boxWidth="12.38" boxHeight="3.00" gatewayBoxId="FEDEX_LARGE_BOX"/>
+    <mantle.shipment.ShipmentBoxType shipmentBoxTypeId="FedEx_Box_Large_2" description="FedEx® Large Box (L2)"
+                                     dimensionUomId="LEN_in" boxLength="11.25" boxWidth="8.75" boxHeight="7.75" gatewayBoxId="FEDEX_LARGE_BOX"/>
+    <mantle.shipment.ShipmentBoxType shipmentBoxTypeId="FedEx_Box_Medium_1" description="FedEx® Medium Box (M1)"
+                                     dimensionUomId="LEN_in" boxLength="13.25" boxWidth="11.50" boxHeight="2.38" gatewayBoxId="FEDEX_MEDIUM_BOX"/>
+    <mantle.shipment.ShipmentBoxType shipmentBoxTypeId="FedEx_Box_Medium_2" description="FedEx® Medium Box (M2)"
+                                     dimensionUomId="LEN_in" boxLength="11.25" boxWidth="8.75" boxHeight="4.38" gatewayBoxId="FEDEX_MEDIUM_BOX"/>
+    <mantle.shipment.ShipmentBoxType shipmentBoxTypeId="FedEx_Box_Small_1" description="FedEx® Small Box (S1)"
+                                     dimensionUomId="LEN_in" boxLength="12.38" boxWidth="10.88" boxHeight="1.50" gatewayBoxId="FEDEX_SMALL_BOX"/>
+    <mantle.shipment.ShipmentBoxType shipmentBoxTypeId="FedEx_Box_Small_2" description="FedEx® Small Box (S2)"
+                                     dimensionUomId="LEN_in" boxLength="11.25" boxWidth="8.75" boxHeight="4.38" gatewayBoxId="FEDEX_SMALL_BOX"/>
+    <mantle.shipment.ShipmentBoxType shipmentBoxTypeId="FedEx_Envelope" description="FedEx® Envelope"
+                                     dimensionUomId="LEN_in" boxLength="12.50" boxWidth="9.50" boxHeight="0.80" gatewayBoxId="FEDEX_ENVELOPE"/>
+    <mantle.shipment.ShipmentBoxType shipmentBoxTypeId="FedEx_Tube" description="FedEx® Tube"
+                                     dimensionUomId="LEN_in" boxLength="38.00" boxWidth="6.00" boxHeight="6.00" gatewayBoxId="FEDEX_TUBE"/>
+    <mantle.shipment.ShipmentBoxType shipmentBoxTypeId="FedEx_Pak_1" description="FedEx® Large Pak"
+                                     dimensionUomId="LEN_in" boxLength="15.50" boxWidth="12.00" boxHeight="0.80" gatewayBoxId="FEDEX_PAK"/>
+    <mantle.shipment.ShipmentBoxType shipmentBoxTypeId="FedEx_Pak_2" description="FedEx® Small Pak"
+                                     dimensionUomId="LEN_in" boxLength="12.75" boxWidth="10.25" boxHeight="0.80" gatewayBoxId="FEDEX_PAK"/>
+
+
+
+    <mantle.shipment.carrier.ShippingGatewayConfig shippingGatewayConfigId="FedEx_DEMO"
+                                                   shippingGatewayTypeEnumId="ShGtwyFedEx" description="FedEx API Demo"
+                                                   getRateServiceName="mantle.FedExServices.get#ShippingRate"
+                                                   requestLabelServiceName="mantle.FedExServices.create#ShippingLabel">
+
+        <!-- set your FedEx Account IDs for carriers with records like these -->
+
+        <methods carrierPartyId="FedEx" shipmentMethodEnumId="ShMthGround" gatewayServiceCode="GROUND_HOME_DELIVERY"/>
+        <methods carrierPartyId="FedEx" shipmentMethodEnumId="ShMthGroundCom" gatewayServiceCode="FEDEX_GROUND"/>
+        <methods carrierPartyId="FedEx" shipmentMethodEnumId="ShMthNextDay" gatewayServiceCode="STANDARD_OVERNIGHT"/>
+        <methods carrierPartyId="FedEx" shipmentMethodEnumId="ShMthNextDayPri" gatewayServiceCode="FEDEX_PRIORITY_OVERNIGHT"/>
+        <methods carrierPartyId="FedEx" shipmentMethodEnumId="ShMthSecondDay" gatewayServiceCode="FEDEX_2_DAY"/>
+        <methods carrierPartyId="FedEx" shipmentMethodEnumId="ShMthThirdDay" gatewayServiceCode="FEDEX_EXPRESS_SAVER"/>
+
+        <!--  set your FedEx API token (test or live) with a record like this  -->
+        <options optionEnumId="SgoFedExClientId" optionValue=""/>
+        <options optionEnumId="SgoFedExClientSecret" optionValue=""/>
+        <options optionEnumId="SgoFedExAccountNumber" optionValue=""/>
+        <options optionEnumId="SgoLabelType" optionValue="PAPER_4X6"/>
+
+    </mantle.shipment.carrier.ShippingGatewayConfig>
+
+    <!--  used in mantle.shipment.CarrierServices ShipmentLabels services  -->
+    <moqui.security.UserGroupPreference userGroupId="ALL_USERS" preferenceKey="DefaultShipmentGatewayConfigId" preferenceValue="FedEx_DEMO"/>
+
+    <!--  example per org/vendor settings, used as defaults if not store; note that for screens like EditParty with no store or
+            vendor the Owner Party must be set to use these settings  -->
+    <mantle.party.PartySetting partyId="ORG_ZIZI_RETAIL" partySettingTypeId="DefaultShipmentGatewayConfigId" settingValue="FedEx_DEMO"/>
+
+    <mantle.product.store.ProductStore productStoreId="POPC_DEFAULT">
+        <shipOptions carrierPartyId="FedEx" shipmentMethodEnumId="ShMthGround" />
+        <shipOptions carrierPartyId="FedEx" shipmentMethodEnumId="ShMthGroundCom" />
+        <shipOptions carrierPartyId="FedEx" shipmentMethodEnumId="ShMthNextDay" />
+        <shipOptions carrierPartyId="FedEx" shipmentMethodEnumId="ShMthNextDayPri" />
+        <shipOptions carrierPartyId="FedEx" shipmentMethodEnumId="ShMthSecondDay" />
+        <shipOptions carrierPartyId="FedEx" shipmentMethodEnumId="ShMthThirdDay" />
+    </mantle.product.store.ProductStore>
+
+</entity-facade-xml>

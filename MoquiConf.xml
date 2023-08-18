@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<moqui-conf xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/moqui-conf-2.1.xsd">
+    <cache-list>
+        <cache name="fedex" expire-time-live="3600" key-type="String" value-type="String"/>
+    </cache-list>
+</moqui-conf>
