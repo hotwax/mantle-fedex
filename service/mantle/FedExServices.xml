@@ -18,14 +18,14 @@
                 <field-map field-name="shippingGatewayConfigId"/>
                 <field-map field-name="optionEnumId" value="SgoFedExClientId"/>
             </entity-find-one>
-            <if condition="!apiClientId">
+            <if condition="!apiClientId || !apiClientId.optionValue">
                 <return error="true" message="Client Id is not set on Shipping Gateway Config Id:${shippingGatewayConfigId}"/>
             </if>
             <entity-find-one entity-name="mantle.shipment.carrier.ShippingGatewayOption" value-field="apiClientSecret">
                 <field-map field-name="shippingGatewayConfigId"/>
                 <field-map field-name="optionEnumId" value="SgoFedExClientSecret"/>
             </entity-find-one>
-            <if condition="!apiClientSecret">
+            <if condition="!apiClientSecret || !apiClientSecret.optionValue">
                 <return error="true" message="Client Secret is not set on Shipping Gateway Config Id:${shippingGatewayConfigId}"/>
             </if>
             <set field="parameter"  value="grant_type=client_credentials&amp;client_id=${apiClientId.optionValue}&amp;client_secret=${apiClientSecret.optionValue}"/>
@@ -68,13 +68,13 @@
                 <field-map field-name="shippingGatewayConfigId"/>
                 <field-map field-name="optionEnumId" value="SgoFedExAccountNumber"/>
             </entity-find-one>
-            <if condition="!accountNum">
+            <if condition="!accountNum || !accountNum.optionValue">
                 <return error="true" message="Account number is not set on Shipping Gateway Config Id:${shippingGatewayConfigId}"/>
             </if>
 
             <!-- ==============  Shipment_Record  ============== -->
 
-            <entity-find-one entity-name="mantle.shipment.Shipment" value-field="shipment" for-update="true"/>
+            <entity-find-one entity-name="mantle.shipment.Shipment" value-field="shipment"/>
             <if condition="!shipment">
                 <return error="true" message="Shipment not found with ID ${shipmentId}"/>
             </if>
@@ -92,13 +92,16 @@
             </if>
 
             <!--  ==============  Shipper  ==============  -->
-
+            <set field="originPostalContactMechId" from="routeSegment.originPostalContactMechId"/>
             <if condition="!originPostalContactMechId &amp;&amp; routeSegment.originFacilityId">
                 <service-call name="mantle.facility.ContactServices.get#FacilityDefaultShipOrigin" out-map="facOriginOut"
                               in-map="[facilityId:routeSegment.originFacilityId]"/>
                 <if condition="facOriginOut.postalContactMechId">
                     <set field="originPostalContactMechId" from="facOriginOut.postalContactMechId"/>
                 </if>
+            </if>
+            <if condition="!originPostalContactMechId">
+                <return error="true" message="originPostalContactMechId not set on shipment ${shipmentId}:${shipmentRouteSegmentSeqId}"/>
             </if>
 
             <entity-find-one entity-name="mantle.party.contact.PostalAddress" value-field="originAddress">
@@ -114,14 +117,21 @@
             <entity-find-one entity-name="moqui.basic.Geo" value-field="originCountry">
                 <field-map field-name="geoId" from="originAddress.countryGeoId"/>
             </entity-find-one>
+
+            <if condition="!originAddress.postalCode">
+                <return error="true" message="Origin Postal code is not found for ContactMechId: ${originPostalContactMechId}"/>
+            </if>
             <set field="Shipper" from="[address:[streetLines:[originAddress.address1],city:originAddress.city,
                         stateOrProvinceCode:originState.geoCodeAlpha2, postalCode:originAddress.postalCode,
                         countryCode:originCountry.geoCodeAlpha2]]"/>
 
             <!--  ==============  Recipient  ==============  -->
 
+            <if condition="!routeSegment.destPostalContactMechId">
+                <return error="true" message="destPostalContactMechId not set on shipment ${shipmentId}:${shipmentRouteSegmentSeqId}"/>
+            </if>
             <entity-find-one entity-name="mantle.party.contact.PostalAddress" value-field="destAddress">
-                <field-map field-name="contactMechId" from="destPostalContactMechId"/>
+                <field-map field-name="contactMechId" from="routeSegment.destPostalContactMechId"/>
             </entity-find-one>
             <if condition="!destAddress">
                 <return  error="true" message="No destination address set on Shipment Route Segment ${shipmentId}:${shipmentRouteSegmentSeqId}"/>
@@ -133,6 +143,9 @@
             <entity-find-one entity-name="moqui.basic.Geo" value-field="destCountry">
                 <field-map field-name="geoId" from="destAddress.countryGeoId"/>
             </entity-find-one>
+            <if condition="!destAddress.postalCode">
+                <return error="true" message="Destination Postal code is not found for ContactMechId: ${routeSegment.destPostalContactMechId}"/>
+            </if>
             <set field="recipient" from="[address:[streetLines:[destAddress.address1], city:destAddress.city,
                         stateOrProvinceCode:destState.geoCodeAlpha2, postalCode:destAddress.postalCode,
                         countryCode:destCountry.geoCodeAlpha2]]"/>
@@ -146,8 +159,8 @@
             <if condition="!shipmentPackage">
                 <return error="true" message="This shipmentId ${shipmentId} has no Shipment package, not getting rates"/>
             </if>
-            <if condition="!shipmentPackage.weightUomId">
-                <return error="true" message="Weight or WeightUomId not set for Shipment Package ${shipmentId}:${shipmentPackageSeqId}"/>
+            <if condition="!shipmentPackage.weightUomId || !shipmentPackage.weight">
+                <return error="true" message="Weight or WeightUomId or weight not set for Shipment Package ${shipmentId}:${shipmentPackageSeqId}"/>
             </if>
 
             <set field="requestMap" from="[accountNumber:[value:accountNum.optionValue],requestedShipment:[shipper:Shipper,
@@ -196,12 +209,12 @@
                 <field-map field-name="shippingGatewayConfigId"/>
                 <field-map field-name="optionEnumId" value="SgoFedExAccountNumber"/>
             </entity-find-one>
-            <if condition="!accountNum">
+            <if condition="!accountNum || !accountNum.optionValue">
                 <return error="true" message="Account number is not set on Shipping Gateway Config Id:${shippingGatewayConfigId}"/>
             </if>
 
             <!-- ~~~~~~~~~~~~~ shipment:routeSegment ~~~~~~~~~~~~~ -->
-            <entity-find-one entity-name="mantle.shipment.Shipment" value-field="shipment" for-update="true"/>
+            <entity-find-one entity-name="mantle.shipment.Shipment" value-field="shipment"/>
             <if condition="!shipment">
                 <return error="true" message="Shipment not found with ID ${shipmentId}"/>
             </if>
@@ -309,7 +322,7 @@
                 <field-map field-name="carrierPartyId" from="routeSegment.carrierPartyId"/>
                 <field-map field-name="shipmentMethodEnumId"/>
             </entity-find-one>
-            <if condition="!gatewayMethod">
+            <if condition="!gatewayMethod || !gatewayMethod.gatewayServiceCode">
                 <return error="true" message="Service Type is not set for Shipment ${shipmentId}"/>
             </if>
 
@@ -343,7 +356,7 @@
                 <field-map field-name="shippingGatewayConfigId"/>
                 <field-map field-name="optionEnumId" value="SgoLabelType"/>
             </entity-find-one>
-            <if condition="!labelType">
+            <if condition="!labelType || !labelType.optionValue">
                 <return error="true" message="Label Type is not set on Shipping Gateway Config Id:${shippingGatewayConfigId}"/>
             </if>
 
@@ -410,13 +423,13 @@
                 <field-map field-name="shippingGatewayConfigId"/>
                 <field-map field-name="optionEnumId" value="SgoFedExAccountNumber"/>
             </entity-find-one>
-            <if condition="!accountNum">
+            <if condition="!accountNum || !accountNum.optionValue">
                 <return error="true" message="Account number is not set on Shipping Gateway Config Id:${shippingGatewayConfigId}"/>
             </if>
 
             <!-- ============== Shipment Record ============== -->
 
-            <entity-find-one entity-name="mantle.shipment.Shipment" value-field="shipment" for-update="true"/>
+            <entity-find-one entity-name="mantle.shipment.Shipment" value-field="shipment"/>
             <if condition="!shipment">
                 <return error="true" message="Shipment not found with ID ${shipmentId}"/>
             </if>
