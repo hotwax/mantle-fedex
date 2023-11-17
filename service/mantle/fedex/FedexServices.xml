@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<services xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/service-definition-2.1.xsd">
+   <service verb="request" noun="ShippingLabels">
+        <implements service="mantle.shipment.CarrierServices.request#ShippingLabels"/>
+        <actions>
+
+            <!-- Fetching Shipment Entity -->
+            <entity-find-one entity-name="mantle.shipment.Shipment" value-field="shipment" for-update="true"/>
+            <if condition="!shipment"><return error="true" message="Shipment not found with ID ${shipmentId}"/></if>
+
+            <!-- Fetching ShipmentRouteSegment Entity -->
+            <entity-find-one entity-name="mantle.shipment.ShipmentRouteSegment" value-field="routeSegment"/>
+            <if condition="!routeSegment">
+                <return error="true" message="Shipment Route Segment not found with ID ${shipmentId}:${shipmentRouteSegmentSeqId}"/>
+            </if>
+
+            <!--If shipmentPackageSeqId present, will call service for one package, else for all packages-->
+            <entity-find entity-name="mantle.shipment.ShipmentPackageRouteSeg" list="packageRouteSegList">
+                <econdition field-name="shipmentId"/><econdition field-name="shipmentRouteSegmentSeqId"/>
+                <econdition field-name="shipmentPackageSeqId" ignore-if-empty="true"/>
+            </entity-find>
+
+            <!-- Calling LabelRequestMap for all Packages -->
+            <service-call name="mantle.fedex.FedexServices.make#LabelRequestMap" in-map="context" out-map="request"/>
+            <if condition="!request.labelRequestMap"><return/></if>
+            <set field="labelRequestMap" from="request.labelRequestMap"/>
+
+            <!-- Setting Connection With Fedex -->
+            <service-call name="mantle.fedex.FedexServices.send#FedexRequest" out-map="response"
+                in-map="[shippingGatewayConfigId:shippingGatewayConfigId, method:'POST', path:'ship/v1/shipments',
+                contentType:'application/json', requestMap:request.labelRequestMap, xLocale:'en-US']"/>
+
+            <set field="responseMap" from="response.responseMap"/>
+            <if condition="!responseMap">
+                <return type="danger" message="Response not received on calling get#ShippingLabel service"></return>
+            </if>
+            <if condition="responseMap.output.transactionShipments.alerts &amp;&amp; responseMap.output.transactionShipments.alerts[0]">
+                <iterate list="responseMap.output.transactionShipments.alerts" entry="alert">
+                    <message type="danger">Fedex error(${alert.alertType}) - ${alert.code}: ${alert.message}</message>
+                </iterate>
+            </if>
+
+            <!-- Storing eachPackage's trackingCode, labelDate and labelImage in packageRouteSeg -->
+            <iterate list="packageRouteSegList" entry="packageRouteSeg">
+                <set field="packageRouteSeg.trackingCode"
+                     from="responseMap.output.transactionShipments[0].pieceResponses[packageRouteSeg_index].trackingNumber"/>
+                <set field="packageRouteSeg.labelDate"
+                     from="responseMap.output.transactionShipments[0].pieceResponses[packageRouteSeg_index].deliveryDatestamp"/>
+                <set field="packageRouteSeg.labelImage"
+                     from="responseMap.output.transactionShipments[0].pieceResponses[packageRouteSeg_index].packageDocuments[0].encodedLabel"/>
+                <entity-update value-field="packageRouteSeg"/>
+            </iterate>
+        </actions>
+    </service>
+    <service verb="make" noun="LabelRequestMap">
+        <in-parameters>
+            <parameter name="shipmentId"/>
+            <parameter name="shipmentRouteSegmentSeqId"/>
+            <parameter name="packageRouteSegList" type="List" required="true"/>
+            <parameter name="routeSegment" type="EntityValue" required="true"/>
+            <parameter name="shipment" type="EntityValue" required="true"/>
+            <parameter name="shipmentMethodEnumId"/>
+            <parameter name="shippingGatewayConfigId" required="true"/>
+        </in-parameters>
+        <out-parameters>
+            <parameter name="labelRequestMap" type="Map"/>
+        </out-parameters>
+        <actions>
+
+            <!-- Setting ConfigId given in input else taking value stored in routeSegment entity -->
+            <set field="shippingGatewayConfigId" from="shippingGatewayConfigId?:routeSegment.shippingGatewayConfigId"/>
+
+            <!-- Extracting ShipmentMethod/ServiceType details-->
+            <set field="shipmentMethodEnumId" from="shipmentMethodEnumId?:routeSegment.shipmentMethodEnumId"/>
+            <if condition="!shipmentMethodEnumId">
+                <return type="danger" message="In get#ShippingLabel Service, no shipmentMethod available."/>
+            </if>
+
+            <!--Sender's Address and Contact Details-->
+            <service-call name="mantle.fedex.FedexServices.get#AddressMap" out-map="addressResponse"
+                in-map="[postalContactMechId:routeSegment.originPostalContactMechId,
+                telecomContactMechId:routeSegment.originTelecomContactMechId, partyId:shipment.fromPartyId]"/>
+            <if condition="!addressResponse.addressMap"><return/></if>
+            <set field="senderAddress" from="addressResponse.addressMap.address" type="NewMap"/>
+            <set field="senderContact" from="addressResponse.addressMap.contact" type="NewMap"/>
+
+            <!-- Receiver's Address and Contact Details-->
+            <service-call name="mantle.fedex.FedexServices.get#AddressMap" out-map="addressResponse"
+                 in-map="[postalContactMechId:routeSegment.destPostalContactMechId,
+                 telecomContactMechId:routeSegment.destTelecomContactMechId, partyId:shipment.toPartyId]"/>
+            <if condition="!addressResponse.addressMap"><return/> </if>
+            <set field="receiverAddress" from="addressResponse.addressMap.address" type="NewMap"/>
+            <set field="receiverContact" from="addressResponse.addressMap.contact" type="NewMap"/>
+
+            <!--Extracting LabelFormatType -->
+            <entity-find-one entity-name="ShippingGatewayOption" value-field="labelFormat">
+                <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
+                <field-map field-name="optionEnumId" value="FedexLabelFormatType"/>
+            </entity-find-one>
+
+            <!--Extracting LabelImageType -->
+            <entity-find-one entity-name="ShippingGatewayOption" value-field="labelImage">
+                <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
+                <field-map field-name="optionEnumId" value="FedexLabelImageType"/>
+            </entity-find-one>
+
+            <!--Extracting LabelStockType -->
+            <entity-find-one entity-name="ShippingGatewayOption" value-field="labelStock">
+                <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
+                <field-map field-name="optionEnumId" value="FedexLabelStockType"/>
+            </entity-find-one>
+
+            <!-- Calling FedEx service for everyPackage and storing them in requestedPackageLineItems -->
+            <set field="requestedPackageLineItems" from="[]"/>
+            <iterate list="packageRouteSegList" entry="packageRouteSeg">
+                <set field="shipmentPackageSeqId" from="packageRouteSeg.shipmentPackageSeqId"/>
+
+                <!-- FindingPackage records for boxTypeId used to get weight and dimension details -->
+                <entity-find-one entity-name="mantle.shipment.ShipmentPackage" value-field="shipmentPackage"/>
+                <if condition="!shipmentPackage">
+                    <message>Package ${shipmentPackageSeqId} has no records in shipmentPackage, skipping Package
+                    </message>
+                </if>
+
+                <!-- Adding every Package's weight and dimension in requestedPackageLineItems -->
+                <service-call name="mantle.fedex.FedexServices.get#PackageMap" out-map="packageResponse"
+                    in-map="[shipmentPackageSeqId:shipmentPackageSeqId, boxId:shipmentPackage.shipmentBoxTypeId,
+                    weightUomId:shipmentPackage.weightUomId, weight:shipmentPackage.weight]"/>
+                <script>requestedPackageLineItems.add(packageResponse.packageMap)</script>
+            </iterate>
+
+            <!-- Extracting accountNumber Details -->
+            <entity-find-one entity-name="ShipmentGatewayFedex" value-field="fedexGtwy">
+                <field-map field-name="shippingGatewayConfigId" from="shippingGatewayConfigId"/>
+            </entity-find-one>
+            <if condition="!fedexGtwy"><return message="${shippingGatewayConfigId} has no account number"/></if>
+            <set field="accountNumber" from="[value:fedexGtwy.accountNumber]" type="NewMap"/>
+
+            <!-- Creating subMaps address_from, address_to, shippingChargesPayment, labelSpecification and requestedShipment -->
+            <set field="address_from" from="[contact:senderContact, address:senderAddress]" type="NewMap"/>
+            <set field="address_to" from="[contact:receiverContact, address:receiverAddress]" type="NewMap"/>
+            <set field="shippingChargesPayment" from="[paymentType:'SENDER']" type="NewMap"/>
+            <set field="labelSpecification" from="[imageType:labelImage.optionValue,
+                labelStockType:labelStock.optionValue, labelFormatType:labelFormat.optionValue]" type="NewMap"/>
+            <set field="requestedShipment" from="[shipper:address_from, recipients:[address_to],
+                serviceType:shipmentMethodEnumId, packagingType:shipmentPackage.shipmentBoxTypeId, pickupType:'USE_SCHEDULED_PICKUP',
+                shippingChargesPayment:shippingChargesPayment, labelSpecification:labelSpecification,
+                requestedPackageLineItems:requestedPackageLineItems]" type="NewMap"/>
+
+            <!-- Creating labelRequestMap -->
+            <set field="labelRequestMap" from="[labelResponseOptions:'LABEL', requestedShipment:requestedShipment,
+                accountNumber:accountNumber]" type="NewMap"/>
+        </actions>
+    </service>
+</services>
