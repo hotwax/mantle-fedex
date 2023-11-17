@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<services xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/service-definition-2.1.xsd">
+
+    <service verb="get" noun="PackageMap">
+        <in-parameters>
+            <parameter name="shipmentPackageSeqId" required="true"/>
+            <parameter name="boxId" required="true"/>
+            <parameter name="weightUomId" required="true"/>
+            <parameter name="weight" required="true"/>
+        </in-parameters>
+        <out-parameters>
+            <parameter name="packageMap" type="Map"/>
+        </out-parameters>
+        <actions>
+            <!-- Searching BoxDetails -->
+            <entity-find-one entity-name="mantle.shipment.ShipmentBoxType" value-field="boxType">
+                <field-map field-name="shipmentBoxTypeId" from="boxId"/>
+            </entity-find-one>
+            <if condition="!boxType">
+                <return message="Package ${shipmentPacakgeSeqId} has no box type, skipping Package"/>
+            </if>
+
+            <!-- Searching dimension Unit -->
+            <entity-find-one entity-name="moqui.basic.Uom" value-field="dimensionUom">
+                <field-map field-name="uomId" from="boxType.dimensionUomId ?: 'LEN_in'"/>
+            </entity-find-one>
+            <if condition="!(dimensionUom.abbreviation in ['in', 'cm'])">
+                <return message="Package ${shipmentPackageSeqId} box type ${boxId} dimension unit must be one of: 'cm', 'in';
+                    skipping Package"/>
+            </if>
+
+            <!-- Searching weight Unit -->
+            <entity-find-one entity-name="moqui.basic.Uom" value-field="weightUom">
+                <field-map field-name="uomId" from="weightUomId ?: 'WT_lb'"/>
+            </entity-find-one>
+            <if condition="!(weightUom.abbreviation in ['lb', 'kg'])">
+                <return message="Package ${shipmentPackageSeqId} box type ${boxId} must be one of: 'lb', 'kg'; skipping package"/>
+            </if>
+
+            <!-- dimension: Length, Width, Height -->
+            <if condition="!boxType.boxLength || !boxType.boxWidth || !boxType.boxHeight">
+                <return message="Package ${shipmentPackageSeqId} Box type ${boxId} is missing dimensions (length, width, height),
+                    skipping Package"/>
+            </if>
+
+            <!-- Creating subMaps for eachPackage -->
+            <set field="weight" from="[units:weightUom.abbreviation=='kg'?'KG':'LB', value:weight]"/>
+            <set field="dimensions" from="[length:boxType.boxLength, width:boxType.boxWidth, height:boxType.boxHeight,
+                units:dimensionUom.abbreviation=='in'?'IN':'CM']"/>
+
+            <!-- Creating packageMap -->
+            <set field="packageMap" from="[weight:weight, dimensions:dimensions]" type="NewMap"/>
+        </actions>
+    </service>
+</services>
